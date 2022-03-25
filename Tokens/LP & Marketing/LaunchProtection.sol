@@ -972,7 +972,7 @@ contract R is Context, IERC20, Ownable {
                     );
                 }
             } else if (from != uniswapV2Pair && !_isExcludedFromFee[from]) {
-                require(_tOwned[from] <= txSettings.maxWalletAmount);
+                require(_tOwned[to] <= txSettings.maxWalletAmount);
                 require(amount <= txSettings.maxTxAmount);
                 if (cooldownInfo.sellcooldownEnabled) {
                     require(sellcooldown[from] <= block.timestamp);
