@@ -965,8 +965,8 @@ contract R is Context, IERC20, Ownable {
             ) {
                 require(_tOwned[to] <= txSettings.maxWalletAmount);
                 require(amount <= txSettings.maxTxAmount);
-                require(buycooldown[to] < block.timestamp);
                 if (cooldownInfo.buycooldownEnabled) {
+                    require(buycooldown[to] < block.timestamp);
                     buycooldown[to] = block.timestamp.add(
                         cooldownInfo.cooldown
                     );
