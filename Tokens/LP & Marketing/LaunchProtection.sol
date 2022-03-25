@@ -851,7 +851,8 @@ contract R is Context, IERC20, Ownable {
     }
 
     function swapAndLiquify(uint256 contractTokenBalance) private lockTheSwap {
-        uint256 marketingTokenBalance = contractTokenBalance.mul(85).div(100);
+        uint256 FeeDivisor = _buyLiquidityFee + _buyMarketingFee + _liquidityFee + _marketingFee;
+        uint256 marketingTokenBalance = contractTokenBalance.mul(_buyMarketingFee + _marketingFee).div(FeeDivisor);
         uint256 liquidityTokenBalance = contractTokenBalance.sub(
             marketingTokenBalance
         );
@@ -865,7 +866,7 @@ contract R is Context, IERC20, Ownable {
         );
         swapTokensForEth(tokensToSwapToETH);
         uint256 ETHSwapped = address(this).balance.sub(initialBalance);
-        uint256 ETHToLiquify = ETHSwapped.mul(10).div(100);
+        uint256 ETHToLiquify = ETHSwapped.mul(_buyLiquidityFee + _liquidityFee).div(100);
         addLiquidity(tokenBalanceToLiquify, ETHToLiquify);
         emit SwapAndLiquify(
             tokenBalanceToLiquifyAsETH,
