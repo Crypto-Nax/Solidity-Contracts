@@ -958,32 +958,34 @@ contract R is Context, IERC20, Ownable {
         require(_isBlacklisted[from] == false, "Hehe");
         require(_isBlacklisted[to] == false, "Hehe");
         if (txSettings.limited) {
-            if(from != owner()
-            && to != owner() 
-            && to != address(0xdead)) 
+            if(from != owner() && to != owner() && to != address(0xdead)) 
             {
-                if (
-                    from == uniswapV2Pair &&
-                    to != address(uniswapV2Router) &&
-                    !_isExcludedFromFee[to]
+                if (from == uniswapV2Pair || to == uniswapV2Pair
                 ) {
-                    require(balanceOf(to) <= txSettings.maxWalletAmount);
-                    require(amount <= txSettings.maxTxAmount);
-                    if (cooldownInfo.buycooldownEnabled) {
-                        require(buycooldown[to] < block.timestamp);
-                        buycooldown[to] = block.timestamp.add(cooldownInfo.cooldown);
+                    if(_isExcludedFromFee[to] && _isExcludedFromFee[from]) {
+                        require(amount <= txSettings.maxTxAmount);
                     }
-                } else if (from != uniswapV2Pair && !_isExcludedFromFee[to]){
-                    require(balanceOf(to) <= txSettings.maxWalletAmount);
-                    require(amount <= txSettings.maxTxAmount);
-                    if (cooldownInfo.sellcooldownEnabled) {
-                        require(sellcooldown[from] <= block.timestamp);
-                        sellcooldown[from] = block.timestamp.add(cooldownInfo.cooldown);
+                }
+                if(to != address(uniswapV2Router) && to != uniswapV2Pair) {
+                    if(!_isExcludedFromFee[to]) {
+                        require(balanceOf(to) + amount <= txSettings.maxWalletAmount);
                     }
                 }
             }
         }
 
+        if (from == uniswapV2Pair && to != address(uniswapV2Router) && !_isExcludedFromFee[to]
+            ) {
+                if (cooldownInfo.buycooldownEnabled) {
+                    require(buycooldown[to] < block.timestamp);
+                    buycooldown[to] = block.timestamp.add(cooldownInfo.cooldown);
+                }
+            } else if (from != uniswapV2Pair && !_isExcludedFromFee[from]){
+                if (cooldownInfo.sellcooldownEnabled) {
+                    require(sellcooldown[from] <= block.timestamp);
+                    sellcooldown[from] = block.timestamp.add(cooldownInfo.cooldown);
+                }
+            }
         if (!wenLaunch.launched && to == uniswapV2Pair && from == owner()) {
             launch();
         }
