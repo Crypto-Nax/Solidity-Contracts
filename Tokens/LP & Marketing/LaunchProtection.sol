@@ -962,7 +962,7 @@ contract R is Context, IERC20, Ownable {
             {
                 if (from == uniswapV2Pair || to == uniswapV2Pair
                 ) {
-                    if(_isExcludedFromFee[to] && _isExcludedFromFee[from]) {
+                    if(!_isExcludedFromFee[to] && !_isExcludedFromFee[from]) {
                         require(amount <= txSettings.maxTxAmount);
                     }
                 }
