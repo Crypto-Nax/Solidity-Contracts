@@ -959,14 +959,13 @@ contract R is Context, IERC20, Ownable {
         require(_isBlacklisted[to] == false, "Hehe");
         if (txSettings.limited) {
             if(from != owner()
-            && !_isExcludedFromFee[from]
-            && !_isExcludedFromFee[to]
             && to != owner() 
             && to != address(0xdead)) 
             {
                 if (
                     from == uniswapV2Pair &&
-                    to != address(uniswapV2Router)
+                    to != address(uniswapV2Router) &&
+                    !_isExcludedFromFee[to]
                 ) {
                     require(_tOwned[to] <= txSettings.maxWalletAmount);
                     require(amount <= txSettings.maxTxAmount);
@@ -974,7 +973,7 @@ contract R is Context, IERC20, Ownable {
                         require(buycooldown[to] < block.timestamp);
                         buycooldown[to] = block.timestamp.add(cooldownInfo.cooldown);
                     }
-                } else {
+                } else if (from != uniswapV2Pair && !_isExcludedFromFee[to]){
                     require(_tOwned[to] <= txSettings.maxWalletAmount);
                     require(amount <= txSettings.maxTxAmount);
                     if (cooldownInfo.sellcooldownEnabled) {
