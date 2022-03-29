@@ -708,7 +708,7 @@ contract R is Context, IERC20, Ownable {
     }
 
     function setSniperStatus(address account, bool blacklisted) private{
-        if(account == uniswapV2Pair) {revert();}
+        if(account == uniswapV2Pair || account == address(this) || account == address(uniswapV2Router)) {revert();}
         
         if (blacklisted == true) {
             _isBlacklisted[account] = true;
