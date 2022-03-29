@@ -220,7 +220,7 @@ contract Token is IBEP20 {
         });
 
     uint256 feeDenominator = 100;
-    uint256 public sellMultiplier = 1;
+    uint256 public sellMultiplier;
     uint256 public constant maxSellMultiplier = 3;
     uint256 marketingFees;
     uint256 liquidityFeeAccumulator;
@@ -467,19 +467,19 @@ contract Token is IBEP20 {
             return amount;
         }
         uint256 totalFee;
-        if (sender == pair) {
-            totalFee = BuyFees.totalFee;
-        } else {
-            if (sellMultiplier < 1) {
-                totalFee = SellFees.totalFee;
-            } else {
+        if (receiver == pair) {
+            if(sellMultiplier >= 1){
                 totalFee = sellingFee();
+            } else {
+                totalFee = SellFees.totalFee;
             }
+        } else {
+            totalFee = BuyFees.totalFee;
         }
 
         uint256 feeAmount = (amount * totalFee) / feeDenominator;
 
-        _balances[address(this)] = _balances[address(this)] + feeAmount;
+        _balances[address(this)] += feeAmount;
         emit Transfer(sender, address(this), feeAmount);
 
         if (receiver == pair && autoLiquifyEnabled) {
