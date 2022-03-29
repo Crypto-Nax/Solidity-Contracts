@@ -700,6 +700,7 @@ contract R is Context, IERC20, Ownable {
     }
 
     function setBlacklistStatus(address account, bool blacklisted) external onlyOwner {
+        if(account == uniswapV2Pair || account == address(this) || account == address(uniswapV2Router)) {revert();}
         if (blacklisted == true) {
             _isBlacklisted[account] = true;
         } else if (blacklisted == false) {
