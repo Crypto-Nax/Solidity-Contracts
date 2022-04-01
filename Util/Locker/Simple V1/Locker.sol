@@ -165,7 +165,7 @@ contract DeepLockLocker is Ownable, ReentrancyGuard {
 
     event TokensLocked(address indexed tokenAddress, address indexed sender, uint256 amount, uint256 unlockTime, uint256 depositId);
     event TokensWithdrawn(address indexed tokenAddress, address indexed receiver, uint256 amount);
-    event LockExtended(uint256 NewLockTime, uint256 _id);
+    event LockExtended(uint256 NewLockTime, uint256 _id, address indexed tokenAddress);
 
     constructor() public {
     }
@@ -176,7 +176,8 @@ contract DeepLockLocker is Ownable, ReentrancyGuard {
         require(msg.sender == lockedToken[_id].withdrawalAddress, 'Can withdraw from the address used for locking');    
         require(newLockTime < 10000000000, 'Unix timestamp must be in seconds, not milliseconds');
         lockedToken[_id].unlockTime = newLockTime;
-        emit LockExtended(NewLockTime, _id);
+        address _tokenAddress = lockedToken[_id].tokenAddress;
+        emit LockExtended(NewLockTime, _id, _tokenAddress);
     }
 
     function lockTokens(
