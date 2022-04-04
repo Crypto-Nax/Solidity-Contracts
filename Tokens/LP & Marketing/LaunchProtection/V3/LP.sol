@@ -110,7 +110,9 @@ contract R is Context, IERC20, Ownable, IERC20Metadata {
 
     function setLpPair(address pair, bool enabled) external onlyOwner {
         lpPairs[pair] = enabled;
+        Verifier.setLpPair(pair, enabled);
     }
+    
     function getTxSetting() public view returns(uint256 maxTx, uint256 maxWallet, bool limited){
         return Verifier.getTxSetting();
     }
@@ -118,7 +120,7 @@ contract R is Context, IERC20, Ownable, IERC20Metadata {
     function getCoolDownSettings() public view returns(bool buyCooldown, bool sellCooldown, uint256 coolDownTime, uint256 coolDownLimit) {
         return Verifier.getCoolDownSettings();
     }
-    
+
     function getBlacklistStatus(address account) public view returns(bool) {
         return Verifier.getBlacklistStatus(account);
     }
