@@ -262,4 +262,3 @@ contract Staking {
         return ret;
     }
 }
-}
