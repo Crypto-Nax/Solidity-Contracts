@@ -77,10 +77,7 @@ contract Verifier is Context, Verify, Ownable{
     function getCoolDownSettings() public view override returns(bool, bool, uint256, uint256) {
         return(cooldownInfo.buycooldownEnabled, cooldownInfo.sellcooldownEnabled, cooldownInfo.cooldown, cooldownInfo.cooldownLimit);
     }
-
-    function getBlacklistStatus(address account) public view override returns(bool) {
-        return _isBlacklisted[account];
-    }
+    
     function setCooldownEnabled(bool onoff, bool offon) external onlyOwner {
         cooldownInfo.buycooldownEnabled = onoff;
         cooldownInfo.sellcooldownEnabled = offon;

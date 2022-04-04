@@ -122,7 +122,7 @@ contract R is Context, IERC20, Ownable, IERC20Metadata {
     }
 
     function getBlacklistStatus(address account) public view returns(bool) {
-        return Verifier.getBlacklistStatus(account);
+        return Verifier._isBlacklisted[account];
     }
 
     function setSellFee(uint256 liquidityFee, uint256 marketingFee) public onlyOwner {
