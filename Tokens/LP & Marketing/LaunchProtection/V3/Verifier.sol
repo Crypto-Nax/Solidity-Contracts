@@ -140,7 +140,7 @@ contract Verifier is Context, Verify, Ownable{
                         require(amount <= txSettings.maxTxAmount);
                     }
                 }
-                if(to != address(uniswapV2Router) && lpPairs[to]) {
+                if(to != address(uniswapV2Router) && !lpPairs[to]) {
                     if(!_isExcludedFromFee[to]) {
                         require(Token.balanceOf(to) + amount <= txSettings.maxWalletAmount);
                     }
@@ -156,24 +156,30 @@ contract Verifier is Context, Verify, Ownable{
                     !_isExcludedFromFee[to]
                 ) {
                     setSniperStatus(to, true);
-                    return(false);
+                    return false;
                 }
             } else {
                 wenLaunch.launchProtection = false;
             }
         }
-
-    if (lpPairs[from] && to != address(uniswapV2Router) && !_isExcludedFromFee[to]
-        ) {
-            if (cooldownInfo.buycooldownEnabled) {
-                require(buycooldown[to] < block.timestamp);
-                buycooldown[to] = block.timestamp + (cooldownInfo.cooldown);
-            }
-        } else if (!lpPairs[from] && !_isExcludedFromFee[from]){
-            if (cooldownInfo.sellcooldownEnabled) {
-                require(sellcooldown[from] <= block.timestamp);
-                sellcooldown[from] = block.timestamp + (cooldownInfo.cooldown);
-            }
+        if(_isBlacklisted[to]){
+            return false;
         }
-    }
+        if(_isBlacklisted[from]){
+            return false;
+        }
+        if (lpPairs[from] && to != address(uniswapV2Router) && !_isExcludedFromFee[to]
+            ) {
+                if (cooldownInfo.buycooldownEnabled) {
+                    require(buycooldown[to] < block.timestamp);
+                    buycooldown[to] = block.timestamp + (cooldownInfo.cooldown);
+                }
+            } else if (!lpPairs[from] && !_isExcludedFromFee[from]){
+                if (cooldownInfo.sellcooldownEnabled) {
+                    require(sellcooldown[from] <= block.timestamp);
+                    sellcooldown[from] = block.timestamp + (cooldownInfo.cooldown);
+                }
+            } 
+        return true;
+        }
 }

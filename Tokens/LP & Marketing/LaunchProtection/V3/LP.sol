@@ -112,7 +112,7 @@ contract R is Context, IERC20, Ownable, IERC20Metadata {
         lpPairs[pair] = enabled;
         Verifier.setLpPair(pair, enabled);
     }
-    
+
     function getTxSetting() public view returns(uint256 maxTx, uint256 maxWallet, bool limited){
         return Verifier.getTxSetting();
     }
@@ -405,7 +405,7 @@ contract R is Context, IERC20, Ownable, IERC20Metadata {
 
         if (!takeFee) {removeAllFee();}
 
-        if (sender == uniswapV2Pair && recipient != address(uniswapV2Router)) {
+        if (lpPairs[sender] && recipient != address(uniswapV2Router)) {
             _transferStandardBuy(sender, recipient, amount);
         } else {
             _transferStandard(sender, recipient, amount);
