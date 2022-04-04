@@ -22,6 +22,7 @@ contract R is Context, IERC20, Ownable, IERC20Metadata {
     mapping(address => uint256) private _tOwned;
     mapping(address => mapping(address => uint256)) private _allowances;
     mapping(address => bool) public _isExcludedFromFee;
+    mapping(address => bool) lpPairs;
 
     uint256 public _liquidityFee;
     uint256 private _previousLiquidityFee = _liquidityFee;
@@ -42,6 +43,7 @@ contract R is Context, IERC20, Ownable, IERC20Metadata {
     bool public swapAndLiquifyEnabled;
     bool launched;
     bool limited;
+    bool public tradingEnabled;
 
     modifier lockTheSwap() {
         inSwapAndLiquify = true;
@@ -57,6 +59,7 @@ contract R is Context, IERC20, Ownable, IERC20Metadata {
         uniswapV2Pair = IUniswapV2Factory(_uniswapV2Router.factory())
             .createPair(address(this), _uniswapV2Router.WETH());
         uniswapV2Router = _uniswapV2Router;
+        lpPairs[uniswapV2Pair] = true;
         emit Transfer(address(0), _msgSender(), _tTotal);
     }
 
@@ -103,6 +106,10 @@ contract R is Context, IERC20, Ownable, IERC20Metadata {
 
     function limitedTx(bool onoff) public onlyOwner {
         Verifier.limitedTx(onoff);
+    }
+
+    function setLpPair(address pair, bool enabled) external onlyOwner {
+        lpPairs[pair] = enabled;
     }
 
     function setSellFee(uint256 liquidityFee, uint256 marketingFee) public onlyOwner {
@@ -302,10 +309,24 @@ contract R is Context, IERC20, Ownable, IERC20Metadata {
         return true;
     }
 
+    function limits(address from, address to) private view returns (bool) {
+        return from != owner()
+            && to != owner()
+            && tx.origin != owner()
+            && !lpPairs[to]
+            && !lpPairs[from]
+            && !_isExcludedFromFee[from]
+            && !_isExcludedFromFee[to]
+            && to != address(0x0dead)
+            && to != address(0)
+            && from != address(this);
+    }
+
     function launch() internal {
         launched = true;
         swapAndLiquifyEnabled = true;
         Verifier.checkLaunch(block.number, true, true);
+        tradingEnabled = true;
         emit Launch();
     }
 
@@ -313,7 +334,7 @@ contract R is Context, IERC20, Ownable, IERC20Metadata {
 
     function shouldSwap() internal view returns(bool){
         return 
-                msg.sender != uniswapV2Pair &&
+                !lpPairs[msg.sender] &&
                 !inSwapAndLiquify &&
                 swapAndLiquifyEnabled &&
                 balanceOf(address(this)) >= numTokensToSwap &&
@@ -326,8 +347,14 @@ contract R is Context, IERC20, Ownable, IERC20Metadata {
         require(to != address(0), "ERC20: transfer to the zero address");
         require(amount > 0, "Transfer amount must be greater than zero");
 
-        if (!launched && to == uniswapV2Pair && from == owner()) {
+        if (!launched && to == uniswapV2Pair) {
+            require(from == owner() || _isExcludedFromFee[from]);
             launch();
+        }
+        if(limits) {
+            if(!tradingEnabled){
+                revert();
+            }
         }
 
         if (shouldSwap()) {swapAndLiquify(numTokensToSwap);}
