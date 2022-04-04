@@ -70,6 +70,17 @@ contract Verifier is Context, Verify, Ownable{
         }
     }
 
+    function getTxSetting() public view override returns(uint256, uint256, bool){
+        return (txSettings.maxTxAmount, txSettings.maxWalletAmount, txSettings.txLimits);
+    }
+
+    function getCoolDownSettings() public view override returns(bool, bool, uint256, uint256) {
+        return(cooldownInfo.buycooldownEnabled, cooldownInfo.sellcooldownEnabled, cooldownInfo.cooldown, cooldownInfo.cooldownLimit);
+    }
+
+    function getBlacklistStatus(address account) public view override returns(bool) {
+        return _isBlacklisted[account];
+    }
     function setCooldownEnabled(bool onoff, bool offon) external onlyOwner {
         cooldownInfo.buycooldownEnabled = onoff;
         cooldownInfo.sellcooldownEnabled = offon;
@@ -84,7 +95,7 @@ contract Verifier is Context, Verify, Ownable{
         return Tokens[token];
     }
 
-    function setTxSettings(uint256 txp, uint256 txd, uint256 mwp, uint256 mwd, bool limiter) public onlyOwner {
+    function setTxSettings(uint256 txp, uint256 txd, uint256 mwp, uint256 mwd, bool limiter) public override onlyOwner {
         require((Token.totalSupply() * txp) / txd >= (Token.totalSupply()/ 1000), "Max Transaction must be above 0.1% of total supply.");
         require((Token.totalSupply()* mwp) / mwd >= (Token.totalSupply() / 1000), "Max Wallet must be above 0.1% of total supply.");
         uint256 newTx = (Token.totalSupply() * txp) / (txd);

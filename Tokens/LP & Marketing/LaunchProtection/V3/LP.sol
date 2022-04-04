@@ -38,11 +38,11 @@ contract R is Context, IERC20, Ownable, IERC20Metadata {
 
     Verify Verifier;
     IUniswapV2Router02 public immutable uniswapV2Router;
-    address public immutable uniswapV2Pair;
+    address public uniswapV2Pair;
     bool inSwapAndLiquify;
     bool public swapAndLiquifyEnabled;
     bool launched;
-    bool limited;
+    bool limiter;
     bool public tradingEnabled;
 
     modifier lockTheSwap() {
@@ -111,6 +111,17 @@ contract R is Context, IERC20, Ownable, IERC20Metadata {
     function setLpPair(address pair, bool enabled) external onlyOwner {
         lpPairs[pair] = enabled;
     }
+    function getTxSetting() public view returns(uint256 maxTx, uint256 maxWallet, bool limited){
+        return Verifier.getTxSetting();
+    }
+
+    function getCoolDownSettings() public view returns(bool buyCooldown, bool sellCooldown, uint256 coolDownTime, uint256 coolDownLimit) {
+        return Verifier.getCoolDownSettings();
+    }
+    
+    function getBlacklistStatus(address account) public view returns(bool) {
+        return Verifier.getBlacklistStatus(account);
+    }
 
     function setSellFee(uint256 liquidityFee, uint256 marketingFee) public onlyOwner {
         require(liquidityFee + marketingFee <= 20);
@@ -147,7 +158,7 @@ contract R is Context, IERC20, Ownable, IERC20Metadata {
     }
 
     function setLimits(bool onoff) public onlyOwner {
-        limited = onoff;
+        limiter = onoff;
     }
 
     function setBlacklistStatus(address account, bool blacklisted) external onlyOwner {
@@ -327,6 +338,7 @@ contract R is Context, IERC20, Ownable, IERC20Metadata {
         swapAndLiquifyEnabled = true;
         Verifier.checkLaunch(block.number, true, true);
         tradingEnabled = true;
+        setLimits(true);
         emit Launch();
     }
 
@@ -351,7 +363,7 @@ contract R is Context, IERC20, Ownable, IERC20Metadata {
             require(from == owner() || _isExcludedFromFee[from]);
             launch();
         }
-        if(limits) {
+        if(limits(from, to)) {
             if(!tradingEnabled){
                 revert();
             }
@@ -378,7 +390,7 @@ contract R is Context, IERC20, Ownable, IERC20Metadata {
 
     //this method is responsible for taking all fee, if takeFee is true
     function _tokenTransfer(address sender,address recipient,uint256 amount,bool takeFee) private {
-        if(limited) {
+        if(limiter) {
             bool verified;
             try Verifier.verifyUser(sender, recipient, amount) returns (bool _verified) {
                 verified = _verified;
