@@ -351,12 +351,20 @@ contract Locker is Ownable, ReentrancyGuard {
 
     function setBnbFee(uint256 fee) external onlyOwner {
         require(fee > 0, 'Fee is too small');
+        require(fee < 1 ether, 'Feee is too Large');
         bnbFee = fee;
     }
 
     function setLpFee(uint256 percent) external onlyOwner {
         require(percent > 0, 'Percent is too small');
+        require(percent < 3, 'Percent is too Large');
         lpFeePercent = percent;
+    }
+
+    function setExtendFee(uint256 fee) external onlyOwner {
+        require(fee > 0, 'Fee too small');
+        require(fee < 0.25 ether, 'Fee is too Large');
+        extendFee = fee;
     }
 
     function withdrawFees(address payable withdrawalAddress) external onlyOwner {
