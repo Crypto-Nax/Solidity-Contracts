@@ -3,14 +3,52 @@
 pragma solidity ^0.8.0;
 
 abstract contract Context {
-    function _msgSender() internal view virtual returns (address payable) {
-        return msg.sender;
+    function _msgSender() internal view returns (address payable) {
+        return payable(msg.sender);
     }
 
-    function _msgData() internal view virtual returns (bytes memory) {
+    function _msgData() internal view returns (bytes memory) {
         this; // silence state mutability warning without generating bytecode - see https://github.com/ethereum/solidity/issues/2691
         return msg.data;
     }
+}
+
+interface IBEP20 {
+    function totalSupply() external view returns (uint256);
+
+    function decimals() external view returns (uint8);
+
+    function symbol() external view returns (string memory);
+
+    function name() external view returns (string memory);
+
+    function getOwner() external view returns (address);
+
+    function balanceOf(address account) external view returns (uint256);
+
+    function transfer(address recipient, uint256 amount)
+        external
+        returns (bool);
+
+    function allowance(address _owner, address spender)
+        external
+        view
+        returns (uint256);
+
+    function approve(address spender, uint256 amount) external returns (bool);
+
+    function transferFrom(
+        address sender,
+        address recipient,
+        uint256 amount
+    ) external returns (bool);
+
+    event Transfer(address indexed from, address indexed to, uint256 value);
+    event Approval(
+        address indexed owner,
+        address indexed spender,
+        uint256 value
+    );
 }
 
 /**
@@ -110,7 +148,7 @@ abstract contract ReentrancyGuard {
 
     uint256 private _status;
 
-    constructor () internal {
+    constructor () {
         _status = _NOT_ENTERED;
     }
 
@@ -168,10 +206,10 @@ contract Locker is Ownable, ReentrancyGuard {
     event TokensWithdrawn(address indexed tokenAddress, address indexed receiver, uint256 amount);
     event LockExtended(uint256 NewLockTime, uint256 _id, address indexed tokenAddress);
 
-    constructor() public {
+    constructor() {
     }
 
-    function extendLock(uint256 newLockTime, uint256 _id) external{
+    function extendLock(uint256 newLockTime, uint256 _id) external payable {
         require(newLockTime >= lockedToken[_id].unlockTime, 'New lock time must be after unlockTime');
         require(!lockedToken[_id].withdrawn, 'Tokens already withdrawn');
         require(msg.sender == lockedToken[_id].withdrawalAddress, 'Can withdraw from the address used for locking');    
@@ -181,7 +219,7 @@ contract Locker is Ownable, ReentrancyGuard {
         remainingBnbFees += msg.value;
         lockedToken[_id].unlockTime = newLockTime;
         address _tokenAddress = lockedToken[_id].tokenAddress;
-        emit LockExtended(NewLockTime, _id, _tokenAddress);
+        emit LockExtended(newLockTime, _id, _tokenAddress);
     }
 
     function lockTokens(
