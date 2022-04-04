@@ -18,8 +18,8 @@ contract Locker is Ownable, ReentrancyGuard {
     uint256 public bnbFee = .25 ether;
     uint256 public extendFee = 0.05 ether;
     uint256 public lpFeePercent = 5; // .5%
-    uint256 public totalBnbFees = 0;
-    uint256 public remainingBnbFees = 0;
+    uint256 public totalBnbFees;
+    uint256 public remainingBnbFees;
     address[] tokenAddressesWithFees;
     mapping(address => uint256) public tokensFees;
 
