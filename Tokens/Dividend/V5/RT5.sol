@@ -2,103 +2,12 @@
 pragma solidity ^0.8.0;
 import "./IBEP20.sol";
 import "./Context.sol";
-import "./Verify.sol";
+import "./IDexFactory.sol";
+import "./IDexRouter.sol";
+import "./IDividendDistributor.sol";
+import "./Staking.sol";
 
-
-interface IDEXFactory {
-    function createPair(address tokenA, address tokenB)
-        external
-        returns (address pair);
-}
-
-interface IDEXRouter {
-    function factory() external pure returns (address);
-
-    function WETH() external pure returns (address);
-
-    function addLiquidity(
-        address tokenA,
-        address tokenB,
-        uint256 amountADesired,
-        uint256 amountBDesired,
-        uint256 amountAMin,
-        uint256 amountBMin,
-        address to,
-        uint256 deadline
-    )
-        external
-        returns (
-            uint256 amountA,
-            uint256 amountB,
-            uint256 liquidity
-        );
-
-    function addLiquidityETH(
-        address token,
-        uint256 amountTokenDesired,
-        uint256 amountTokenMin,
-        uint256 amountETHMin,
-        address to,
-        uint256 deadline
-    )
-        external
-        payable
-        returns (
-            uint256 amountToken,
-            uint256 amountETH,
-            uint256 liquidity
-        );
-
-    function swapExactTokensForTokensSupportingFeeOnTransferTokens(
-        uint256 amountIn,
-        uint256 amountOutMin,
-        address[] calldata path,
-        address to,
-        uint256 deadline
-    ) external;
-
-    function swapExactETHForTokensSupportingFeeOnTransferTokens(
-        uint256 amountOutMin,
-        address[] calldata path,
-        address to,
-        uint256 deadline
-    ) external payable;
-
-    function swapExactTokensForETHSupportingFeeOnTransferTokens(
-        uint256 amountIn,
-        uint256 amountOutMin,
-        address[] calldata path,
-        address to,
-        uint256 deadline
-    ) external;
-}
-
-interface IDividendDistributor {
-    function setDistributionCriteria(
-        uint256 _minPeriod,
-        uint256 _minDistribution,
-        uint256 _minHoldReq
-    ) external;
-
-    function setShare(address shareholder, uint256 amount) external;
-    function holdReq(address shareholder) external view returns(uint256);
-    function deposit() external payable;
-
-    function process(uint256 gas) external;
-
-    function claimDividendFor(address shareholder) public;
-    function claimDividendAsFor(address shareholder) public;
-
-    function getShareholderInfo(address shareholder) external view returns (uint256, uint256, uint256, uint256, uint256, uint256, bool);
-    function getAccountInfo(address shareholder) external view returns (uint256, uint256, uint256, uint256);
-
-}
-
-interface Staking {
-    function stakedTokens(address user) external returns (uint256);
-}
-
-contract Token is IBEP20 {
+contract Token is IBEP20, Context {
     address public owner;
     address WBNB = 0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c;
     address DEAD = 0x000000000000000000000000000000000000dEaD;
@@ -202,7 +111,7 @@ contract Token is IBEP20 {
     }
 
     constructor(address payable m) {
-        owner = msg.sender;
+        owner = _msgSender();
         authorizations[owner] = true;
         router = IDEXRouter(0x10ED43C718714eb63d5aA57B78B54704E256024E);
         pair = IDEXFactory(router.factory()).createPair(WBNB, address(this));
@@ -235,7 +144,7 @@ contract Token is IBEP20 {
 
     }
 
-    function updateRoute(address _router, address _pair) external onlyOwner {
+    function updateRouter(address _router, address _pair) external onlyOwner {
         router = IDEXRouter(_router);
         pair = _pair;
     }
@@ -823,8 +732,8 @@ contract Token is IBEP20 {
     function getAccountInfo(address shareholder) external view returns (uint256, uint256, uint256, uint256) {
         return distributor.getAccountInfo(shareholder);
     }
-    function holdReq(address shareholder) external view returns(uint256) {
-        distributor.holdReq(shareholder);
+    function holdReq() public view returns(uint256) {
+        return distributor.holdReq();
     }
 
     function claimDividendFor(address shareholder) public {
