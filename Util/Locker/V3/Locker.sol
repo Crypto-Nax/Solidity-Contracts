@@ -154,6 +154,7 @@ contract Locker is Ownable, ReentrancyGuard {
             lockedToken[_id].withdrawalAddress = _withdrawalAddress;
             lockedToken[_id].initialAmount = lockAmount;
             lockedToken[_id].tokenAmount = lockAmount;
+            lockedToken[_id].dateLocked = block.timestamp;
             lockedToken[_id].unlockTime = _unlockTime;
             lockedToken[_id].withdrawn = false;
 
@@ -182,6 +183,7 @@ contract Locker is Ownable, ReentrancyGuard {
             lockedToken[_id].withdrawalAddress = _withdrawalAddress;            
             lockedToken[_id].initialAmount = lockAmount;
             lockedToken[_id].tokenAmount = lockAmount;
+            lockedToken[_id].dateLocked = block.timestamp;
             lockedToken[_id].unlockTime = _unlockTime;
             lockedToken[_id].withdrawn = false;
 
@@ -202,7 +204,7 @@ contract Locker is Ownable, ReentrancyGuard {
         address withdrawalAddress = lockedToken[_id].withdrawalAddress;
         require(lpLockers[_id][lockedToken[_id].lpToken].withdrawTokens());
         lockedToken[_id].withdrawn = true;
-
+        lockedToken[_id].tokenAmount -= lockedToken[_id].tokenAmount;
         // Remove depositId from withdrawal addresses mapping
         uint256 i;
         uint256 j;
