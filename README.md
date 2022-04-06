@@ -1,2 +1,2 @@
 # Solidity-Contracts
-Solidity Contracts I have written and experimented on.
+Solidity Contracts I have written or experimented on.
