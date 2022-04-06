@@ -39,7 +39,7 @@ contract R is Context, IERC20, Ownable, IERC20Metadata {
             totalFee: MaxFees.liquidityFee +
                 MaxFees.marketingFee
         });
-
+    uint256 taxDivisor = 100;
     uint256 numTokensToSwap;
     uint256 lastSwap;
     uint256 swapInterval = 30 seconds;
@@ -81,6 +81,7 @@ contract R is Context, IERC20, Ownable, IERC20Metadata {
         Verifier.setLpPair(uniswapV2Pair, true);
         setSellFees(5,5);
         setBuyFees(5,5);
+        setTransferFees(1,1);
         setNumTokensToSwap(1,1000);
     }
 
@@ -300,7 +301,7 @@ contract R is Context, IERC20, Ownable, IERC20Metadata {
         require(amountPercentage <= 100);
         uint256 amountETH = address(this).balance;
         payable(_marketingWallet).transfer(
-            (amountETH * (amountPercentage)) / (100)
+            (amountETH * amountPercentage) / 100
         );
     }
 
@@ -455,7 +456,7 @@ contract R is Context, IERC20, Ownable, IERC20Metadata {
             totalFee = TransferFees.totalFee;
         }
 
-        uint256 feeAmount = amount * totalFee / 100;
+        uint256 feeAmount = (amount * totalFee) / taxDivisor;
 
         _tOwned[address(this)] += feeAmount;
         emit Transfer(sender, address(this), feeAmount);
