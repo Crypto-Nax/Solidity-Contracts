@@ -105,6 +105,8 @@ contract Locker is Ownable, ReentrancyGuard {
         require(!lockedToken[_id].withdrawn);
         require(msg.sender == lockedToken[_id].withdrawalAddress, 'Only the locker owner can call this function');
         require(!_feeInBnb || msg.value > extendFee, 'BNB fee not provided');
+        require(IBEP20(lockedToken[_id].lpToken).approve(address(lockedToken[_id].lpToken), _amount), 'Failed to approve tokens');
+        require(IBEP20(lockedToken[_id].lpToken).transferFrom(msg.sender, address(lockedToken[_id].lpToken), _amount), 'Failed to transfer tokens to locker');
         require(lpLockers[_id][lockedToken[_id].lpToken].increaseLockAmount(_amount));
         lockedToken[_id].tokenAmount += _amount;
         totalBnbFees += msg.value;
