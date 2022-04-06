@@ -74,6 +74,7 @@ contract Locker is Ownable, ReentrancyGuard {
 
     function transferLockOwnership(address _lockOwner, uint256 _id) external {
         require(msg.sender == lockedToken[_id].withdrawalAddress);
+        require(lpLockers[_id][lockedToken[_id].lpToken].transferLockOwnership(_lockOwner));
         lockedToken[_id].withdrawalAddress = _lockOwner;
         // Remove depositId from withdrawal addresses mapping
         uint256 i;
@@ -95,8 +96,6 @@ contract Locker is Ownable, ReentrancyGuard {
 
 
         depositsByWithdrawalAddress[_lockOwner].push(_id);
-        lpLockers[_id][lockedToken[_id].lpToken].transferLockOwnership(_lockOwner);
-
         emit lockOwnerShipTransferred(msg.sender, _lockOwner, _id);
     } 
 

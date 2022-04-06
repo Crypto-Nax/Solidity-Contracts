@@ -8,6 +8,6 @@ interface ILocker {
     function getLpAddress() external view returns(address);
     function extendLock(uint256 newUnlockTime) external returns(bool extended);
     function withdrawTokens() external returns(bool);
-    function transferLockOwnership(address _lockOwner) external;
+    function transferLockOwnership(address _lockOwner) external returns(bool transferred);
     function increaseLockAmount(uint256 amount) external returns(bool increased);
 }

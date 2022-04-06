@@ -53,12 +53,18 @@ contract Lock is ReentrancyGuard, ILocker {
     
     function increaseLockAmount(uint256 amount) external override onlyLocker returns(bool increased){
         lpAmount += amount;
+        walletTokenBalance[lpTokens][lockOwner] += lpAmount;
         increased = true;
         return increased;
     }
 
-    function transferLockOwnership(address _lockOwner) external override onlyLocker{
+    function transferLockOwnership(address _lockOwner) external override onlyLocker returns(bool transferred){
+        uint256 previousBalance = walletTokenBalance[lpTokens][lockOwner];
+        walletTokenBalance[lpTokens][lockOwner] = previousBalance - lpAmount;        
+        walletTokenBalance[lpTokens][_lockOwner] += lpAmount;
         lockOwner = _lockOwner;
+        transferred = true;
+        return transferred;
     }
 
     function extendLock(uint256 newUnlockTime) external override onlyLocker returns(bool extended) {
@@ -70,6 +76,8 @@ contract Lock is ReentrancyGuard, ILocker {
 
     function withdrawTokens() external override onlyLocker returns(bool){
         require(IBEP20(lpTokens).transfer(lockOwner, lpAmount), 'Failed to transfer tokens');
+        uint256 previousBalance = walletTokenBalance[lpTokens][lockOwner];
+        walletTokenBalance[lpTokens][lockOwner] = previousBalance - lpAmount;
         withdrawn = true;
         withdrawalTime = block.timestamp;
         return withdrawn;
