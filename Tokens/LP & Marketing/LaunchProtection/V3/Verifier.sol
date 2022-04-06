@@ -77,22 +77,22 @@ contract Verifier is Context, Verify, Ownable{
     function getCoolDownSettings() public view override returns(bool, bool, uint256, uint256) {
         return(cooldownInfo.buycooldownEnabled, cooldownInfo.sellcooldownEnabled, cooldownInfo.cooldown, cooldownInfo.cooldownLimit);
     }
-    
-    function setCooldownEnabled(bool onoff, bool offon) external onlyOwner {
+        
+    function getBlacklistStatus(address account) external view override returns(bool) {
+        return _isBlacklisted[account];
+    }
+
+    function setCooldownEnabled(bool onoff, bool offon) external override onlyToken {
         cooldownInfo.buycooldownEnabled = onoff;
         cooldownInfo.sellcooldownEnabled = offon;
     }
 
-    function setCooldown(uint256 amount) external onlyOwner {
+    function setCooldown(uint256 amount) external override onlyToken {
         require(amount <= cooldownInfo.cooldownLimit);
         cooldownInfo.cooldown = amount;
     }
 
-    function checkTokens(address token) public view returns(bool){
-        return Tokens[token];
-    }
-
-    function setTxSettings(uint256 txp, uint256 txd, uint256 mwp, uint256 mwd, bool limiter) public override onlyOwner {
+    function setTxSettings(uint256 txp, uint256 txd, uint256 mwp, uint256 mwd, bool limiter) public override onlyToken {
         require((Token.totalSupply() * txp) / txd >= (Token.totalSupply()/ 1000), "Max Transaction must be above 0.1% of total supply.");
         require((Token.totalSupply()* mwp) / mwd >= (Token.totalSupply() / 1000), "Max Wallet must be above 0.1% of total supply.");
         uint256 newTx = (Token.totalSupply() * txp) / (txd);
@@ -104,7 +104,11 @@ contract Verifier is Context, Verify, Ownable{
         });
     }
 
-    function setSniperStatus(address account, bool blacklisted) public override  {
+    function setSniperStatus(address account, bool blacklisted) external override onlyToken {
+        _setSniperStatus(account, blacklisted);
+    }
+
+    function _setSniperStatus(address account, bool blacklisted) internal {
         require(msg.sender == _token || msg.sender == owner());
         if(lpPairs[account] || account == address(Token) || account == address(uniswapV2Router)) {revert();}
         
@@ -152,7 +156,7 @@ contract Verifier is Context, Verify, Ownable{
                     to != address(uniswapV2Router) &&
                     !_isExcludedFromFee[to]
                 ) {
-                    setSniperStatus(to, true);
+                    _setSniperStatus(to, true);
                     return false;
                 }
             } else {

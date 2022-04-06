@@ -11,5 +11,7 @@ interface Verify {
     function getTxSetting() external view returns(uint256 maxTx, uint256 maxWallet, bool limited);
     function getCoolDownSettings() external view returns(bool buyCooldown, bool sellCooldown, uint256 coolDownTime, uint256 coolDownLimit);
     function getBlacklistStatus(address account) external view returns(bool);
+    function setCooldownEnabled(bool onoff, bool offon) external;
+    function setCooldown(uint256 amount) external;
 
 }
