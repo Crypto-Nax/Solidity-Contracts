@@ -455,7 +455,7 @@ contract R is Context, IERC20, Ownable, IERC20Metadata {
             totalFee = TransferFees.totalFee;
         }
 
-        uint256 feeAmount = (amount * totalFee) / 100;
+        uint256 feeAmount = amount * totalFee / 100;
 
         _tOwned[address(this)] += feeAmount;
         emit Transfer(sender, address(this), feeAmount);
@@ -483,6 +483,7 @@ contract R is Context, IERC20, Ownable, IERC20Metadata {
             shouldTakeFee(sender) ? takeFee(sender, recipient, amount) : amount;
             _transferStandard(sender, recipient, amount);
         } else {
+            shouldTakeFee(sender) ? takeFee(sender, recipient, amount) : amount;
             _transferStandard(sender, recipient, amount);
         }
     }
