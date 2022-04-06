@@ -2,10 +2,8 @@ pragma solidity ^0.8.0;
 
 // SPDX-License-Identifier: MIT
 import "./IBEP20.sol";
-import "./SafeMath.sol";
 
 contract Staking {
-    using SafeMath for uint256;
     IBEP20 public token;
     address payable public owner;
 
@@ -80,7 +78,7 @@ contract Staking {
         Stakers[msg.sender].totalStakedTokenUser += amount;
         stakedTokens[msg.sender] += amount;
         totalStakedToken += amount;
-        stakersRecord[msg.sender][index].withdrawtime = block.timestamp.add(Duration[planIndex]);
+        stakersRecord[msg.sender][index].withdrawtime = block.timestamp + Duration[planIndex];
         stakersRecord[msg.sender][index].staketime = block.timestamp;
         stakersRecord[msg.sender][index].amount = amount;
         stakersRecord[msg.sender][index].reward = (amount * Bonus[planIndex]) / percentDivider;
@@ -110,21 +108,12 @@ contract Staking {
             owner,
             deductionAmount
         );
-        stakedTokens[msg.sender] = stakedTokens[msg.sender].sub(_amount);
-        totalUnStakedToken = totalUnStakedToken.add(
-            _amount
-        );
-        Stakers[msg.sender].totalUnStakedTokenUser = Stakers[msg.sender]
-            .totalUnStakedTokenUser
-            .add(_amount);
+        stakedTokens[msg.sender] -= _amount;
+        totalUnStakedToken -= _amount;
+        Stakers[msg.sender].totalUnStakedTokenUser += _amount;
         uint256 planIndex = stakersRecord[msg.sender][index].plan;
-        userStakedPerPlan[msg.sender][planIndex] = userStakedPerPlan[
-            msg.sender
-        ][planIndex].sub(_amount, "user stake");
-        totalStakedPerPlan[planIndex] = totalStakedPerPlan[planIndex].sub(
-            _amount,
-            "total stake"
-        );
+        userStakedPerPlan[msg.sender][planIndex] -= _amount;
+        totalStakedPerPlan[planIndex] -= _amount;
         totalStakersPerPlan[planIndex]--;
 
         emit UNSTAKE(msg.sender, _amount);
@@ -150,40 +139,24 @@ contract Staking {
             msg.sender,
             stakersRecord[msg.sender][index].reward
         );
-        stakedTokens[msg.sender] = stakedTokens[msg.sender].sub(_amount);
-        totalWithdrawanToken = totalWithdrawanToken.add(
-            _amount
-        );
-        totalClaimedRewardToken = totalClaimedRewardToken.add(
-            stakersRecord[msg.sender][index].reward
-        );
-        Stakers[msg.sender].totalWithdrawanTokenUser = Stakers[msg.sender]
-            .totalWithdrawanTokenUser
-            .add(_amount);
-        Stakers[msg.sender].totalClaimedRewardTokenUser = Stakers[msg.sender]
-            .totalClaimedRewardTokenUser
-            .add(stakersRecord[msg.sender][index].reward);
+        stakedTokens[msg.sender] -= _amount;
+        totalWithdrawanToken += _amount;
+        totalClaimedRewardToken = totalClaimedRewardToken + stakersRecord[msg.sender][index].reward;
+        Stakers[msg.sender].totalWithdrawanTokenUser -= _amount;
+        Stakers[msg.sender].totalClaimedRewardTokenUser += stakersRecord[msg.sender][index].reward;
         uint256 planIndex = stakersRecord[msg.sender][index].plan;
-        userStakedPerPlan[msg.sender][planIndex] = userStakedPerPlan[
-            msg.sender
-        ][planIndex].sub(_amount, "user stake");
-        totalStakedPerPlan[planIndex] = totalStakedPerPlan[planIndex].sub(
-            _amount,
-            "total stake"
-        );
+        userStakedPerPlan[msg.sender][planIndex] -= _amount;
+        totalStakedPerPlan[planIndex] -= _amount;
         totalStakersPerPlan[planIndex]--;
 
         emit WITHDRAW(
             msg.sender,
-            stakersRecord[msg.sender][index].reward.add(
-                _amount
-            )
-        );
+            stakersRecord[msg.sender][index].reward + _amount);
     }
 
     function unstakeDeductionAmount(address user, uint256 index) public view returns(uint256) {
         uint256 _amount = stakersRecord[user][index].amount;
-        return _amount.mul(unstakePercent).div(percentDivider);
+        return (_amount * unstakePercent) / percentDivider;
     }
 
     function SetStakeDuration(
@@ -239,7 +212,7 @@ contract Staking {
             ) {
                 uint256 val;
                 val = block.timestamp - stakersRecord[user][i].staketime;
-                val = val.mul(stakersRecord[user][i].persecondreward);
+                val = val * (stakersRecord[user][i].persecondreward);
                 if (val < stakersRecord[user][i].reward) {
                     ret += val;
                 } else {
