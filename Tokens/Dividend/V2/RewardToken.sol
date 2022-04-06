@@ -12,9 +12,6 @@ abstract contract Context {
     }
 }
 
-/**
- * BEP20 standard interface.
- */
 interface IBEP20 {
     function totalSupply() external view returns (uint256);
 
