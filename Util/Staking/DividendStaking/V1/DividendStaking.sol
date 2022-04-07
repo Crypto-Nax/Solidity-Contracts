@@ -1659,9 +1659,7 @@ library EnumerableSet {
 }
 
 
-// File contracts/EverWealthStaking.sol
-
-contract EverWealthStaking is Ownable, Pausable, ReentrancyGuard {
+contract Staking is Ownable, Pausable, ReentrancyGuard {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
     using EnumerableSet for EnumerableSet.AddressSet;
