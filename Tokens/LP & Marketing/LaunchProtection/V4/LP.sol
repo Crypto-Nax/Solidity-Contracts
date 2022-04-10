@@ -2,7 +2,7 @@ pragma solidity ^0.8.1;
 // SPDX-License-Identifier: Unlicensed
 import "./Verifier.sol";
 import "./IUniswapV2Factory.sol";
-
+// made by https://github.com/Crypto-Nax https://twitter.com/Crypto_Nax6o4
 contract R is Context, Ownable, IERC20Metadata {
     using Address for address;
 
