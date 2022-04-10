@@ -457,17 +457,18 @@ contract R is Context, Ownable, IERC20Metadata {
         swapAndLiquifyEnabled = true;
     }
     
-    function checkLaunch() internal {
-        verifier.checkLaunch(block.number, true, true);
+    function checkLaunch(uint256 blockAmount) internal {
+        verifier.checkLaunch(block.number, true, true, blockAmount);
     }
 
-    function enableTrading() public onlyOwner {
+    function enableTrading(uint256 blockAmount) public onlyOwner {
+        require(blockAmount <= 5);
         require(!tradingEnabled);
         setLpPair(uniswapV2Pair, true);
         excludeFromFee(address(this));
         excludeFromFee(owner());
         setLaunch();
-        checkLaunch();
+        checkLaunch(blockAmount);
         tradingEnabled = true;
         launched = true;
         setTxSettings(1,100,2,100,true);

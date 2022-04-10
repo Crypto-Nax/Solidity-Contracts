@@ -22,6 +22,7 @@ contract Verifier is Verify{
     }
     struct ILaunch {
         uint256 launchedAt;
+        uint256 antiBlocks;
         bool launched;
         bool launchProtection;
     }
@@ -105,10 +106,11 @@ contract Verifier is Verify{
         return wenLaunch.launchedAt;
     }
 
-    function checkLaunch(uint256 launchedAt, bool launched, bool protection) external override onlyToken {
+    function checkLaunch(uint256 launchedAt, bool launched, bool protection, uint256 blockAmount) external override onlyToken {
         wenLaunch.launchedAt = launchedAt;
         wenLaunch.launched = launched;
         wenLaunch.launchProtection = protection;
+        wenLaunch.antiBlocks = blockAmount;
     }
 
     function setLpPair(address pair, bool enabled) external override onlyToken {
@@ -120,7 +122,7 @@ contract Verifier is Verify{
         require(!_isBlacklisted[from]);
         if (wenLaunch.launchProtection) {
             if (lpPairs[from] && to != address(uniswapV2Router) && !_isExcludedFromFee[to]) {
-                if (block.number <= wenLaunch.launchedAt + 5) {
+                if (block.number <= wenLaunch.launchedAt + wenLaunch.antiBlocks) {
                     _setSniperStatus(to, true);
               }
             } else {

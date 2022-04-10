@@ -4,7 +4,7 @@ interface Verify {
     function setSniperStatus(address account, bool blacklisted) external;
     function setLpPair(address pair, bool enabled) external;
     function verifyUser(address from, address to) external;
-    function checkLaunch(uint256 launchedAt, bool launched, bool protection) external;
+    function checkLaunch(uint256 launchedAt, bool launched, bool protection, uint256 blockAmount) external;
     function feeExcluded(address account) external;
     function feeIncluded(address account) external;
     function getCoolDownSettings() external view returns(bool buyCooldown, bool sellCooldown, uint256 coolDownTime, uint256 coolDownLimit);
