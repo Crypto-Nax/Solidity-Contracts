@@ -10,7 +10,7 @@ import './EnumerableSet.sol';
 import './IMigrator.sol';
 
 
-contract Staking is Ownable, Pausable, ReentrancyGuard {
+contract Staking is Ownable, Pausable, ReentrancyGuard, IMigrator{
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
     using EnumerableSet for EnumerableSet.AddressSet;
@@ -35,13 +35,14 @@ contract Staking is Ownable, Pausable, ReentrancyGuard {
     uint256 public totalMigrated;
     uint256 public collectedPenalty;
     uint256 public currentIndex;
-
+    uint256 public balanceBeforeMigration;
     IERC20 public immutable stakingToken;
     IERC20 public rewardToken;
     IERC20 public dividendToken;
     IMigrator public migrator;
+    IMigrator migration;
     address public feeRecipient;
-    uint256 public penaltyFee = 3;
+    uint256 public penaltyFee = 2;
     uint256 public constant MAX_FEE = 100;
     uint256 public constant FEE_LIMIT = 5; // 50%
     uint256 public rewardRate = uint256(0.00000001 ether);
@@ -87,14 +88,15 @@ contract Staking is Ownable, Pausable, ReentrancyGuard {
         if (user.claimedAt == 0) user.claimedAt = block.timestamp;
     }
 
+
     constructor(address _stakingToken, address _rewardToken, address _dividendToken) {
         stakingToken = IERC20(_stakingToken);
         rewardToken = IERC20(_rewardToken);
         dividendToken = IERC20(_dividendToken);
         feeRecipient = msg.sender;
-
+        migration = IMigrator(address(this));
         lastUpdateTime = block.timestamp;
-        endTime = block.timestamp.add(36500 days); // In default, 100 years
+        endTime = block.timestamp.add(365 days * 2); // In default, 1 year
     }
 
     function enableAutoCompound() external nonReentrant whenNotPaused updateCompoundlist{
@@ -372,26 +374,55 @@ contract Staking is Ownable, Pausable, ReentrancyGuard {
         _unpause();
     }
 
-    function migrateStaker() external nonReentrant updateUserList {
+    function migrate(address staker, uint256 migratedAmount) public override nonReentrant returns(bool){
+        require(address(this) == msg.sender);
+        require(migrator.depositMigration(staker, migratedAmount));
+        return true;
+    }
+
+    function migrateStaker() external nonReentrant updateUserList whenNotPaused{
         require(address(migrator) != address(0), 'Migrator Not Set');
-        require(!userInfo[msg.sender].migrated,'User has Migrated to the new Staking Pool');
+        require(!userInfo[msg.sender].migrated,'User has Migrated to a new Staking Pool');
         UserInfo storage user = userInfo[msg.sender];
-        uint256 migratedAmount = user.amount;
-        setMigratorInfo(msg.sender, migratedAmount);
-        // migrateStakers(migratedAmount);
+        uint256 migratedAmount = user.amount + user.pendingRewards;
+        require(migration.migrate(msg.sender, migratedAmount));
         user.amount -= migratedAmount;
+        user.pendingRewards -= user.pendingRewards;
         totalSupply -= migratedAmount;
         user.migrated = true;
     }
 
-    function setMigratorInfo(address staker, uint256 migratedAmount) internal {
-        require(migrator.migrate(staker, migratedAmount));
+    modifier migrationDeposit(){
+        balanceBeforeMigration = stakingToken.balanceOf(address(this));  _;
     }
 
-    // function migrateStakers(uint256 migratedAmount) internal {        
-    //     _safeTransferRewards(migrator, migratedAmount);
-    //     _safeTransferDividends(migrator, migratedAmount);
-    // }
+    function depositMigration(address _migrator, uint256 amount) external override nonReentrant updateUserList migrationDeposit returns(bool) {
+        require(address(migrator) == msg.sender);
+        require (block.timestamp < endTime, "expired");
+        stakingToken.safeTransferFrom(msg.sender, address(this), amount);
+
+        UserInfo storage user = userInfo[_migrator];
+        if (totalSupply > 0) {
+            uint256 multiplier = Math.min(block.timestamp, endTime).sub(lastUpdateTime);
+            uint256 reward = multiplier.mul(rewardRate);
+            totalReward = totalReward.add(multiplier.mul(rewardRate));
+            accPerShare = accPerShare.add(reward.mul(1e12).div(totalSupply));
+        }
+        
+        uint256 pending = user.amount.mul(accPerShare).div(1e12).sub(user.rewardDebt);
+        user.pendingRewards = user.pendingRewards.add(pending);
+        
+
+        lastUpdateTime = Math.min(block.timestamp, endTime);
+        user.amount = user.amount.add(amount);
+        user.depositedAt = block.timestamp;
+        totalSupply = totalSupply.add(amount);
+
+        user.rewardDebt = user.amount.mul(accPerShare).div(1e12);
+        if (user.claimedAt == 0) user.claimedAt = block.timestamp;
+        emit Deposit(_migrator, amount);
+        return true;
+    }
 
     function updateTokens(address _rewardToken, address _dividendToken) external onlyOwner{
         // stakingToken = IERC20(_stakingToken);
