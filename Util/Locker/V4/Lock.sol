@@ -4,19 +4,34 @@ pragma solidity ^0.8.0;
 import "./ReentrancyGuard.sol";
 import "./IBEP20.sol";
 import "./ILocker.sol";
+import '@openzeppelin/contracts/interfaces/IERC721.sol';
+import '@openzeppelin/contracts/interfaces/IERC721Receiver.sol';
 
 contract Lock is ReentrancyGuard, ILocker {
+    struct tokenInfo{
+        IBEP20 token;
+        uint256 initalTokenAmount;
+        uint256 tokenAmount;
+    }
 
-    address public token;
+    struct nftInfo{
+        IERC721 nftAddress;
+        uint256 nftAmount;
+        uint256 tokenId;
+    }
+    nftInfo public _nftInfo;
+    tokenInfo public _tokenInfo;
+    // address public token;
     address public lockOwner;
     address public mainLocker;
-    uint256 public initalTokenAmount;
-    uint256 public tokenAmount;
+    // uint256 public initalTokenAmount;
+    // uint256 public tokenAmount;
     uint256 public dateLocked;
     uint256 public unlockTime;
     uint256 public withdrawalTime;
     uint256 public Id;
     bool public withdrawn;
+    bool public nftLocker;
 
     mapping(address => mapping(address => uint256)) public walletTokenBalance;
 
@@ -27,24 +42,27 @@ contract Lock is ReentrancyGuard, ILocker {
     constructor(address _token, address _lockOwner, uint256 amount, uint256 _unlockTime, uint256 _id, bool isNFT) payable {
         if(isNFT){
             mainLocker = address(0x0);
-            token = _token;
+            _nftInfo.tokenId = amount;
+            _nftInfo.nftAddress = IERC721(_token);
             lockOwner = _lockOwner;
-            initalTokenAmount = amount;
+            _nftInfo.nftAmount = 1;
             Id = _id;
-            tokenAmount = initalTokenAmount;
+            nftLocker = isNFT;
             dateLocked = block.timestamp;
             unlockTime = _unlockTime;
             walletTokenBalance[_token][_lockOwner] += amount;
         }  else {
+
             mainLocker = address(0x0);
-            token = _token;
+            _tokenInfo.token = IBEP20(_token);
             lockOwner = _lockOwner;
-            initalTokenAmount = amount;
+            _tokenInfo.initalTokenAmount = amount;
             Id = _id;
-            tokenAmount = initalTokenAmount;
+            nftLocker = isNFT;
+            _tokenInfo.tokenAmount = _tokenInfo.initalTokenAmount;
             dateLocked = block.timestamp;
             unlockTime = _unlockTime;
-            walletTokenBalance[_token][_lockOwner] += amount;
+            walletTokenBalance[address(_tokenInfo.token)][_lockOwner] += amount;
         }
     }
 
@@ -62,11 +80,11 @@ contract Lock is ReentrancyGuard, ILocker {
     }
 
     function getTotalTokenBalance() public override view returns (uint256){
-        return tokenAmount;
+        return _tokenInfo.tokenAmount;
     }
 
     function getTokenAddress() external override view returns(address){
-        return token;
+        return address(_tokenInfo.token);
     }
 
     function getUnlockTime() external view override returns(uint256) {
@@ -74,19 +92,25 @@ contract Lock is ReentrancyGuard, ILocker {
     }
     
     function increaseLockAmount(uint256 amount) external override onlyLocker returns(bool increased){
-        tokenAmount += amount;
-        walletTokenBalance[token][lockOwner] += tokenAmount;
+        require(!nftLocker);
+        _tokenInfo.tokenAmount += amount;
+        walletTokenBalance[address(_tokenInfo.token)][lockOwner] += _tokenInfo.tokenAmount;
         increased = true;
         return increased;
     }
 
     function transferLockOwnership(address _lockOwner) external override onlyLocker returns(bool transferred){
-        uint256 previousBalance = walletTokenBalance[token][lockOwner];
-        walletTokenBalance[token][lockOwner] = previousBalance - tokenAmount;        
-        walletTokenBalance[token][_lockOwner] += tokenAmount;
-        lockOwner = _lockOwner;
-        transferred = true;
-        return transferred;
+        if(!nftLocker){
+            uint256 previousBalance = walletTokenBalance[address(_tokenInfo.token)][lockOwner];
+            walletTokenBalance[address(_tokenInfo.token)][lockOwner] = previousBalance - _tokenInfo.tokenAmount;        
+            walletTokenBalance[address(_tokenInfo.token)][_lockOwner] += _tokenInfo.tokenAmount;
+            lockOwner = _lockOwner;
+            transferred = true;
+            return transferred;
+        } else {
+            lockOwner = _lockOwner;
+            return transferred;
+        }
     }
 
     function extendLock(uint256 newUnlockTime) external override onlyLocker returns(bool extended) {
@@ -96,21 +120,35 @@ contract Lock is ReentrancyGuard, ILocker {
         return extended;
     }
 
-    function withdrawTokens(address wAddress) external override onlyLocker returns(bool){
-        if(wAddress == address(0)) {
-            require(IBEP20(token).transfer(lockOwner, tokenAmount), 'Failed to transfer tokens');
-            uint256 previousBalance = walletTokenBalance[token][lockOwner];
-            walletTokenBalance[token][lockOwner] = previousBalance - tokenAmount;
-            withdrawn = true;
-            withdrawalTime = block.timestamp;
-            return withdrawn;
-        } else {
-            require(IBEP20(token).transfer(wAddress, tokenAmount), 'Failed to transfer tokens');
-            uint256 previousBalance = walletTokenBalance[token][lockOwner];
-            walletTokenBalance[token][lockOwner] = previousBalance - tokenAmount;
-            withdrawn = true;
-            withdrawalTime = block.timestamp;
-            return withdrawn;
+    function withdrawTokens(address wAddress) external override onlyLocker returns(bool _withdrawn){
+        if(!nftLocker){  
+            if(wAddress == address(0)) {
+                require(_tokenInfo.token.transfer(lockOwner, _tokenInfo.tokenAmount), 'Failed to transfer tokens');
+                uint256 previousBalance = walletTokenBalance[address(_tokenInfo.token)][lockOwner];
+                walletTokenBalance[address(_tokenInfo.token)][lockOwner] = previousBalance - _tokenInfo.tokenAmount;
+                withdrawn = true;
+                _withdrawn = withdrawn;
+                withdrawalTime = block.timestamp;
+                return _withdrawn;
+            } else {
+                require(IBEP20(_tokenInfo.token).transfer(wAddress, _tokenInfo.tokenAmount), 'Failed to transfer tokens');
+                uint256 previousBalance = walletTokenBalance[address(_tokenInfo.token)][lockOwner];
+                walletTokenBalance[address(_tokenInfo.token)][lockOwner] = previousBalance - _tokenInfo.tokenAmount;
+                withdrawn = true;
+                _withdrawn = withdrawn;
+                withdrawalTime = block.timestamp;
+                return _withdrawn;
+            }
+        }else{
+            if(wAddress == address(0)) {
+                _nftInfo.nftAddress.safeTransferFrom(address(this), lockOwner, _nftInfo.tokenId);
+                _nftInfo.nftAmount -= _nftInfo.nftAmount;
+                _nftInfo.tokenId -= _nftInfo.tokenId;
+                withdrawn = true;
+                _withdrawn = withdrawn;
+                withdrawalTime = block.timestamp;
+                return _withdrawn;
+            }
         }
     }
 }

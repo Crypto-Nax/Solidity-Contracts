@@ -194,7 +194,7 @@ contract Locker is Ownable, ReentrancyGuard {
     function createNftLock(address nftAddress,uint256 _unlockTime, uint256 _id, uint256 tokenId) internal returns(bool){
         IERC721 nftlock = IERC721(nftAddress);
         _id = ++depositId;
-        lpLockers[_id][nftAddress] = new Lock(nftAddress, _msgSender(), 1, _unlockTime,_id,true);
+        lpLockers[_id][nftAddress] = new Lock(nftAddress, _msgSender(), tokenId, _unlockTime,_id,true);
         nftlock.approve(address(lpLockers[_id][nftAddress]), tokenId);
         nftlock.safeTransferFrom(_msgSender(), address(lpLockers[_id][nftAddress]), tokenId);
         address _withdrawalAddress = msg.sender;
