@@ -86,7 +86,7 @@ contract Lock is ReentrancyGuard, ILocker {
         return address(_tokenInfo.token);
     }
 
-    function getNftAddress() external override view returns(address) {
+    function getNftAddress() public override view returns(address) {
         return address(_nftInfo.nftAddress);
     }
 
@@ -96,6 +96,9 @@ contract Lock is ReentrancyGuard, ILocker {
     
     function depositOtherNft(uint256 tokenId) external override onlyLocker returns(bool increased) {
         require(nftLocker);
+        IERC721 nftlock = IERC721(getNftAddress());
+        nftlock.approve(address(this), tokenId);
+        nftlock.safeTransferFrom(msg.sender, address(this), tokenId);
         _nftInfo.tokenId.push(tokenId);
         _nftInfo.nftAmount + 1;
         increased = true;
