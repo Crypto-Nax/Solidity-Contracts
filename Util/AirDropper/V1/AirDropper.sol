@@ -28,12 +28,12 @@ contract AirDropper is Ownable {
     receive() external payable {}
 
     function setTokenHoldReq(uint256 amount) public onlyOwner {
-        require(amount < 100);
+        require(amount <= 100);
         tokenHoldReq = (token.totalSupply() * amount) / token.totalSupply();
     }
 
     function discountRate(address sender) public returns(uint256){
-        if(token.balanceOf(sender) > tokenHoldReq) {
+        if(token.balanceOf(sender) >= tokenHoldReq) {
             uint256 discountedAmount = tokenDiscount + (timesSent[sender] * discountAmount);
             if(discountAmount >= feeAmount){
                 discountedAddress[sender] = true;
