@@ -109,16 +109,36 @@ contract Locker is Ownable, ReentrancyGuard {
 
     function increaseLockAmount(uint256 _id, uint256 _amount, bool _feeInBnb) external payable{
         require(_amount > 0, 'Tokens amount must be greater than 0');
-        require(!lockedToken[_id].withdrawn);
+        require(!lockedToken[_id].withdrawn, 'Tokens already withdrawn');
         require(_msgSender() == lockedToken[_id].withdrawalAddress, 'Only the locker owner can call this function');
         require(!_feeInBnb || msg.value > extendFee, 'BNB fee not provided');
-        require(IBEP20(lockedToken[_id].token).approve(address(lockedToken[_id].token), _amount), 'Failed to approve tokens');
-        require(IBEP20(lockedToken[_id].token).transferFrom(msg.sender, address(lockedToken[_id].token), _amount), 'Failed to transfer tokens to locker');
-        require(lpLockers[_id][lockedToken[_id].token].increaseLockAmount(_amount));
-        lockedToken[_id].tokenAmountOrId += _amount;
-        totalBnbFees += msg.value;
-        remainingBnbFees += msg.value;
-        emit lockAmountIncreased(_id, lockedToken[_id].token, _amount);
+        if(_feeInBnb) {
+            require(IBEP20(lockedToken[_id].token).approve(address(lockedToken[_id].token), _amount), 'Failed to approve tokens');
+            require(IBEP20(lockedToken[_id].token).transferFrom(msg.sender, address(lockedToken[_id].token), _amount), 'Failed to transfer tokens to locker');
+            require(lpLockers[_id][lockedToken[_id].token].increaseLockAmount(_amount));
+            lockedToken[_id].tokenAmountOrId += _amount;
+            totalBnbFees += msg.value;
+            remainingBnbFees += msg.value;
+            emit lockAmountIncreased(_id, lockedToken[_id].token, _amount);          
+        } else {
+            uint256 fee = (_amount * lpFeePercent) / (1000);
+            _amount -= fee;            
+            tokensFees[lockedToken[_id].token] += fee;
+            require(IBEP20(lockedToken[_id].token).approve(address(lpLockers[_id][lockedToken[_id].token]), _amount), 'Failed to approve tokens');
+            require(IBEP20(lockedToken[_id].token).approve(address(this), fee), 'Failed to approve tokens');
+            require(IBEP20(lockedToken[_id].token).transferFrom(_msgSender(), address(lpLockers[_id][lockedToken[_id].token]), _amount), 'Failed to transfer tokens to locker');
+            require(IBEP20(lockedToken[_id].token).transferFrom(_msgSender(), address(this), fee), 'Failed to transfer fee to locker');
+        }
+    }
+
+    function depositOtherNft(uint256 tokenId, uint256 _id) external payable{
+        require(msg.value > extendFee, 'BNB fee not provided');
+        require(_msgSender() == lockedToken[_id].lockOwner);
+        require(!lockedToken[_id].withdrawn, 'Tokens already withdrawn');
+        IERC721 nftlock = IERC721(lockedToken[_id].token);
+        nftlock.approve(address(this), tokenId);
+        nftlock.safeTransferFrom(_msgSender(), address(this), tokenId);
+        require(lpLockers[_id][address(nftlock)].depositOtherNft(tokenId));
     }
 
     function extendLock(uint256 newLockTime, uint256 _id) external payable {
@@ -149,8 +169,9 @@ contract Locker is Ownable, ReentrancyGuard {
             require(IBEP20(_lpToken).transferFrom(_msgSender(), address(lpLockers[_id][_lpToken]), lockAmount), 'Failed to transfer tokens to locker');
 
             lockedToken[_id].token = _lpToken;
-            lockedToken[_id].lpToken = true;
-            lockedToken[_id].withdrawalAddress = (_withdrawalAddress);
+            lockedToken[_id].lpToken = true;            
+            lockedToken[_id].lockOwner = (_msgSender());
+            lockedToken[_id].withdrawalAddress = (_msgSender());
             lockedToken[_id].initialAmount = lockAmount;
             lockedToken[_id].tokenAmountOrId = lockAmount;
             lockedToken[_id].dateLocked = block.timestamp;
@@ -178,6 +199,7 @@ contract Locker is Ownable, ReentrancyGuard {
             lockedToken[_id].token = _lpToken;
             lockedToken[_id].lpToken = true;
             lockedToken[_id].withdrawalAddress = (_msgSender());
+            lockedToken[_id].lockOwner = (_msgSender());
             lockedToken[_id].initialAmount = lockAmount;
             lockedToken[_id].tokenAmountOrId = lockAmount;
             lockedToken[_id].dateLocked = block.timestamp;
@@ -199,7 +221,8 @@ contract Locker is Ownable, ReentrancyGuard {
         nftlock.safeTransferFrom(_msgSender(), address(lpLockers[_id][nftAddress]), tokenId);
         address _withdrawalAddress = msg.sender;
         lockedToken[_id].token = nftAddress;
-        lockedToken[_id].nft = true;
+        lockedToken[_id].nft = true;            
+        lockedToken[_id].lockOwner = (_msgSender());
         lockedToken[_id].withdrawalAddress = _withdrawalAddress;
         lockedToken[_id].initialAmount = 1;
         lockedToken[_id].tokenAmountOrId = tokenId;
@@ -220,7 +243,8 @@ contract Locker is Ownable, ReentrancyGuard {
             require(IBEP20(_token).approve(address(lpLockers[_id][_token]), lockAmount), 'Failed to approve tokens');
             require(IBEP20(_token).transferFrom(msg.sender, address(lpLockers[_id][_token]), lockAmount), 'Failed to transfer tokens to locker');
 
-            lockedToken[_id].token = _token;
+            lockedToken[_id].token = _token;            
+            lockedToken[_id].lockOwner = (_msgSender());
             lockedToken[_id].withdrawalAddress = _withdrawalAddress;
             lockedToken[_id].initialAmount = lockAmount;
             lockedToken[_id].tokenAmountOrId = lockAmount;

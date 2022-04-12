@@ -17,7 +17,7 @@ contract Lock is ReentrancyGuard, ILocker {
     struct nftInfo{
         IERC721 nftAddress;
         uint256 nftAmount;
-        uint256 tokenId;
+        uint256[] tokenId;
     }
     nftInfo public _nftInfo;
     tokenInfo public _tokenInfo;
@@ -42,7 +42,7 @@ contract Lock is ReentrancyGuard, ILocker {
     constructor(address _token, address _lockOwner, uint256 amount, uint256 _unlockTime, uint256 _id, bool isNFT) payable {
         if(isNFT){
             mainLocker = address(0x0);
-            _nftInfo.tokenId = amount;
+            _nftInfo.tokenId.push(amount);
             _nftInfo.nftAddress = IERC721(_token);
             lockOwner = _lockOwner;
             _nftInfo.nftAmount = 1;
@@ -50,7 +50,6 @@ contract Lock is ReentrancyGuard, ILocker {
             nftLocker = isNFT;
             dateLocked = block.timestamp;
             unlockTime = _unlockTime;
-            walletTokenBalance[_token][_lockOwner] += amount;
         }  else {
 
             mainLocker = address(0x0);
@@ -87,16 +86,26 @@ contract Lock is ReentrancyGuard, ILocker {
         return address(_tokenInfo.token);
     }
 
+    function getNftAddress() external override view returns(address) {
+        return address(_nftInfo.nftAddress);
+    }
+
     function getUnlockTime() external view override returns(uint256) {
         return unlockTime;
     }
     
+    function depositOtherNft(uint256 tokenId) external override onlyLocker returns(bool increased) {
+        require(nftLocker);
+        _nftInfo.tokenId.push(tokenId);
+        _nftInfo.nftAmount + 1;
+        increased = true;
+    }
+
     function increaseLockAmount(uint256 amount) external override onlyLocker returns(bool increased){
         require(!nftLocker);
         _tokenInfo.tokenAmount += amount;
         walletTokenBalance[address(_tokenInfo.token)][lockOwner] += _tokenInfo.tokenAmount;
         increased = true;
-        return increased;
     }
 
     function transferLockOwnership(address _lockOwner) external override onlyLocker returns(bool transferred){
@@ -106,10 +115,9 @@ contract Lock is ReentrancyGuard, ILocker {
             walletTokenBalance[address(_tokenInfo.token)][_lockOwner] += _tokenInfo.tokenAmount;
             lockOwner = _lockOwner;
             transferred = true;
-            return transferred;
         } else {
             lockOwner = _lockOwner;
-            return transferred;
+            transferred = true;
         }
     }
 
@@ -117,7 +125,6 @@ contract Lock is ReentrancyGuard, ILocker {
         require(!withdrawn, 'Tokens already withdrawn');
         unlockTime = newUnlockTime;
         extended = true;
-        return extended;
     }
 
     function withdrawTokens(address wAddress) external override onlyLocker returns(bool _withdrawn){
@@ -129,7 +136,6 @@ contract Lock is ReentrancyGuard, ILocker {
                 withdrawn = true;
                 _withdrawn = withdrawn;
                 withdrawalTime = block.timestamp;
-                return _withdrawn;
             } else {
                 require(IBEP20(_tokenInfo.token).transfer(wAddress, _tokenInfo.tokenAmount), 'Failed to transfer tokens');
                 uint256 previousBalance = walletTokenBalance[address(_tokenInfo.token)][lockOwner];
@@ -137,17 +143,24 @@ contract Lock is ReentrancyGuard, ILocker {
                 withdrawn = true;
                 _withdrawn = withdrawn;
                 withdrawalTime = block.timestamp;
-                return _withdrawn;
             }
         }else{
             if(wAddress == address(0)) {
-                _nftInfo.nftAddress.safeTransferFrom(address(this), lockOwner, _nftInfo.tokenId);
+                for(uint8 i = 0; i < _nftInfo.tokenId.length; i++){
+                    _nftInfo.nftAddress.safeTransferFrom(address(this), lockOwner, _nftInfo.tokenId[i]);
+                }
                 _nftInfo.nftAmount -= _nftInfo.nftAmount;
-                _nftInfo.tokenId -= _nftInfo.tokenId;
                 withdrawn = true;
                 _withdrawn = withdrawn;
                 withdrawalTime = block.timestamp;
-                return _withdrawn;
+            } else {
+                for(uint8 i = 0; i < _nftInfo.tokenId.length; i++){
+                    _nftInfo.nftAddress.safeTransferFrom(address(this), wAddress, _nftInfo.tokenId[i]);
+                }
+                _nftInfo.nftAmount -= _nftInfo.nftAmount;
+                withdrawn = true;
+                _withdrawn = withdrawn;
+                withdrawalTime = block.timestamp;
             }
         }
     }
