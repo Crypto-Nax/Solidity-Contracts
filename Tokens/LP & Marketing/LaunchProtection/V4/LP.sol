@@ -512,21 +512,16 @@ contract R is Context, Ownable, IERC20Metadata {
                 verifier.verifyUser(from, to);
             }
         }
-
-        shouldTakeFee(from) ? takeFee(from, to, amount) : amount;
-        _transferStandard(from, to, amount);
+        _tOwned[from] -= amount;
+        uint256 amountSent = shouldTakeFee(from) ? takeFee(from, to, amount) : amount;
+        _tOwned[to] += amountSent;
+        emit Transfer(from, to, amountSent);
         return verified;
     }
 
     function transfer(address recipient, uint256 amount) public override returns (bool) {
         _transfer(_msgSender(), recipient, amount);
         return true;
-    }
-
-    function _transferStandard(address sender,address recipient,uint256 amount) private {
-        _tOwned[sender] -= amount;
-        _tOwned[recipient] += amount;
-        emit Transfer(sender, recipient, amount);
     }
 
 }
