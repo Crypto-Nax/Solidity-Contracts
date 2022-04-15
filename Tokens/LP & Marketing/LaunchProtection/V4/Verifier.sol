@@ -16,7 +16,6 @@ contract Verifier is Verify{
     mapping(address => bool) public _isExcludedFromFee;
     address _token;
     IUniswapV2Router02 public uniswapV2Router;
-    IERC20 public Token;
     modifier onlyToken() {
         require(msg.sender == _token); _;
     }
@@ -43,23 +42,20 @@ contract Verifier is Verify{
         });
 
 
-    constructor(address t, address lp) {
-        uniswapV2Router = IUniswapV2Router02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
-        Token = IERC20(msg.sender);
-        _token = msg.sender;
-        _isExcludedFromFee[t] = true;
-        _isExcludedFromFee[msg.sender] = true;
-        lpPairs[lp] = true;
+    constructor(address[4] memory addresses) {
+        uniswapV2Router = IUniswapV2Router02(addresses[2]);
+        _token = addresses[0];
+        _isExcludedFromFee[addresses[0]] = true;
+        _isExcludedFromFee[addresses[1]] = true;
+        lpPairs[addresses[3]] = true;
     }
     
     function updateToken(address token) external override onlyToken {
-        Token = IERC20(token);
         _token = token;
     }
 
     function updateRouter(address router) external override onlyToken {
-        IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(router);
-        uniswapV2Router = _uniswapV2Router;
+        uniswapV2Router = IUniswapV2Router02(router);
     }
 
     function feeExcluded(address account) external override onlyToken {
@@ -93,7 +89,7 @@ contract Verifier is Verify{
     }
 
     function _setSniperStatus(address account, bool blacklisted) internal {
-        if(lpPairs[account] || account == address(Token) || account == address(uniswapV2Router) || _isExcludedFromFee[account]) {revert();}
+        if(lpPairs[account] || account == address(_token) || account == address(uniswapV2Router) || _isExcludedFromFee[account]) {revert();}
         
         if (blacklisted == true) {
             _isBlacklisted[account] = true;
