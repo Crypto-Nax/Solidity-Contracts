@@ -668,35 +668,32 @@ contract DividendDistributor is IDividendDistributor {
     event DividendsProcessed(uint256 iterations, uint256 count, uint256 index);
 }
 
-interface Verify {
-    function setSniperStatus(address account, bool blacklisted) external;
-    function setLpPair(address pair, bool enabled) external;
-    function verifyUser(address from, address to) external;
-    function checkLaunch(uint256 launchedAt, bool launched, bool protection, uint256 blockAmount) external;
-    function feeExcluded(address account) external;
-    function feeIncluded(address account) external;
-    function getCoolDownSettings() external view returns(bool buyCooldown, bool sellCooldown, uint256 coolDownTime, uint256 coolDownLimit);
-    function getBlacklistStatus(address account) external view returns(bool);
-    function setCooldownEnabled(bool onoff, bool offon) external;
-    function setCooldown(uint256 amount) external;
-    function updateToken(address token) external;
-    function updateRouter(address router) external;
-    function getLaunchedAt() external view returns(uint256 launchedAt);
-}
 
-contract Verifier is Verify{
-    using Address for address;
-    mapping (address => bool) lpPairs;
-    mapping(address => uint256) private buycooldown;
-    mapping(address => uint256) private sellcooldown;
-    mapping(address => bool) public _isBlacklisted;
-    mapping(address => bool) public _isExcludedFromFee;
-    address _token;
+
+contract RewardToken is IERC20, Context, Ownable {
+    address DEAD = 0x000000000000000000000000000000000000dEaD;
+    address public autoLiquidityReceiver;
+    address public marketingFeeReceiver;
+    address public pair;
     IJoeRouter02 public router;
-    IERC20 public Token;
-    modifier onlyToken() {
-        require(msg.sender == _token); _;
-    }
+    IDividendDistributor public distributor;
+    string constant _name = "TOKEN";
+    string constant _symbol = "TOKEN";
+    uint8 constant _decimals = 9;
+
+    uint256 constant _initialSupply = 180_000_000; // put supply amount here
+    uint256 _totalSupply = _initialSupply * (10**_decimals); // total supply amount
+    // uint256 public _maxTxAmount = (_totalSupply * (1)) / (100);
+    mapping(address => bool) lpPairs;
+    mapping(address => uint256) _balances;
+    mapping(address => mapping(address => uint256)) _allowances;
+    mapping(address => bool) isFeeExempt;
+    mapping(address => bool) isTxLimitExempt;
+    mapping(address => bool) isDividendExempt;
+    mapping(address => bool) authorizations;
+    mapping(address => uint256) buycooldown;
+    mapping(address => uint256) sellcooldown;
+    mapping(address => bool) public _isBlacklisted;
     struct ILaunch {
         uint256 launchedAt;
         uint256 antiBlocks;
@@ -717,128 +714,7 @@ contract Verifier is Verify{
             sellcooldownEnabled: true,
             cooldown: 30 seconds,
             cooldownLimit: 60 seconds
-        });
-
-
-    constructor(address[4] memory addresses) {
-        router = IJoeRouter02(addresses[2]);
-        Token = IERC20(addresses[0]);
-        _token = addresses[0];
-        _isExcludedFromFee[addresses[0]] = true;        
-        _isExcludedFromFee[addresses[1]] = true;
-        lpPairs[addresses[3]] = true;
-    }
-    
-    function updateToken(address token) external override onlyToken {
-        Token = IERC20(token);
-        _token = token;
-    }
-
-    function updateRouter(address r) external override onlyToken {
-        IJoeRouter02 _router = IJoeRouter02(r);
-        router = _router;
-    }
-
-    function feeExcluded(address account) external override onlyToken {
-        _isExcludedFromFee[account] = true;
-    }
-
-    function feeIncluded(address account) external override onlyToken {
-        _isExcludedFromFee[account] = false;
-    }
-
-    function getCoolDownSettings() public view override returns(bool, bool, uint256, uint256) {
-        return(cooldownInfo.buycooldownEnabled, cooldownInfo.sellcooldownEnabled, cooldownInfo.cooldown, cooldownInfo.cooldownLimit);
-    }
-        
-    function getBlacklistStatus(address account) external view override returns(bool) {
-        return _isBlacklisted[account];
-    }
-
-    function setCooldownEnabled(bool onoff, bool offon) external override onlyToken {
-        cooldownInfo.buycooldownEnabled = onoff;
-        cooldownInfo.sellcooldownEnabled = offon;
-    }
-
-    function setCooldown(uint256 amount) external override onlyToken {
-        require(amount <= cooldownInfo.cooldownLimit);
-        cooldownInfo.cooldown = amount;
-    }
-
-    function setSniperStatus(address account, bool blacklisted) external override onlyToken {
-        _setSniperStatus(account, blacklisted);
-    }
-
-    function _setSniperStatus(address account, bool blacklisted) internal {
-        if(lpPairs[account] || account == address(Token) || account == address(router) || _isExcludedFromFee[account]) {revert();}
-        
-        if (blacklisted == true) {
-            _isBlacklisted[account] = true;
-        } else {
-            _isBlacklisted[account] = false;
-        }    
-    }
-
-    function getLaunchedAt() external override view returns(uint256 launchedAt){
-        return wenLaunch.launchedAt;
-    }
-
-    function checkLaunch(uint256 launchedAt, bool launched, bool protection, uint256 blockAmount) external override onlyToken {
-        wenLaunch.launchedAt = launchedAt;
-        wenLaunch.launched = launched;
-        wenLaunch.launchProtection = protection;
-        wenLaunch.antiBlocks = blockAmount;
-    }
-
-    function setLpPair(address pair, bool enabled) external override onlyToken {
-        lpPairs[pair] = enabled;
-    }
-
-    function verifyUser(address from, address to) public override onlyToken {
-        require(!_isBlacklisted[to]);
-        require(!_isBlacklisted[from]);
-        if (wenLaunch.launchProtection) {
-            if (lpPairs[from] && to != address(router) && !_isExcludedFromFee[to]) {
-                if (block.number <= wenLaunch.launchedAt + wenLaunch.antiBlocks) {
-                    _setSniperStatus(to, true);
-              }
-            } else {
-                wenLaunch.launchProtection = false;
-            }
-        }
-        if (lpPairs[from] && to != address(router) && !_isExcludedFromFee[to] && cooldownInfo.buycooldownEnabled) {
-            require(buycooldown[to] < block.timestamp);
-            buycooldown[to] = block.timestamp + (cooldownInfo.cooldown);
-            } else if (!lpPairs[from] && !_isExcludedFromFee[from] && cooldownInfo.sellcooldownEnabled){
-                require(sellcooldown[from] <= block.timestamp);
-                sellcooldown[from] = block.timestamp + (cooldownInfo.cooldown);
-            } 
-    }
-}
-
-contract RewardToken is IERC20, Context, Ownable {
-    address DEAD = 0x000000000000000000000000000000000000dEaD;
-    address public autoLiquidityReceiver;
-    address public marketingFeeReceiver;
-    address public pair;
-    IJoeRouter02 public router;
-    IDividendDistributor public distributor;
-    Verify public verifier;
-    string constant _name = "TOKEN";
-    string constant _symbol = "TOKEN";
-    uint8 constant _decimals = 9;
-
-    uint256 constant _initialSupply = 180_000_000; // put supply amount here
-    uint256 _totalSupply = _initialSupply * (10**_decimals); // total supply amount
-    // uint256 public _maxTxAmount = (_totalSupply * (1)) / (100);
-    mapping(address => bool) lpPairs;
-    mapping(address => uint256) _balances;
-    mapping(address => mapping(address => uint256)) _allowances;
-    mapping(address => bool) isFeeExempt;
-    mapping(address => bool) isTxLimitExempt;
-    mapping(address => bool) isDividendExempt;
-    mapping(address => bool) authorizations;
-
+        }); 
     struct IFees {
         uint256 liquidityFee;
         uint256 buybackFee;
@@ -894,15 +770,13 @@ contract RewardToken is IERC20, Context, Ownable {
         require(isAuthorized(msg.sender), "!AUTHORIZED");
         _;
     }
-    constructor(address payable m) {
+    constructor() {
         authorizations[msg.sender] = true;
         router = IJoeRouter02(0x60aE616a2155Ee3d9A68541Ba4544862310933d4);
         pair = IJoeFactory(router.factory()).createPair(router.WAVAX(), address(this));
         lpPairs[pair] = true;
         _allowances[address(this)][address(router)] = type(uint256).max;
-        // verifier = new Verifier([address(this), owner(), address(router), address(pair)]);
-        // distributor = new DividendDistributor(address(router));        
-
+        distributor = new DividendDistributor(address(router));        
         isFeeExempt[address(this)] = true;
         isFeeExempt[msg.sender] = true;
         isTxLimitExempt[msg.sender] = true;
@@ -911,8 +785,8 @@ contract RewardToken is IERC20, Context, Ownable {
         isDividendExempt[address(this)] = true;
         isDividendExempt[DEAD] = true;
 
-        autoLiquidityReceiver = m;
-        marketingFeeReceiver = m;
+        autoLiquidityReceiver = owner();
+        marketingFeeReceiver = owner();
         _balances[msg.sender] = _totalSupply;
         emit Transfer(address(0), msg.sender, _totalSupply);
     }
@@ -924,12 +798,6 @@ contract RewardToken is IERC20, Context, Ownable {
     
     function setLpPair(address pairs, bool enabled) public onlyOwner {
         lpPairs[pairs] = enabled;
-        verifier.setLpPair(pairs, enabled);
-    }
-
-    function updateVerifier(address token, address _router) public onlyOwner {
-        verifier.updateToken(token);
-        verifier.updateRouter(_router);
     }
 
     function updateDividendDistributor(address token, address _router) public onlyOwner{
@@ -1007,7 +875,7 @@ contract RewardToken is IERC20, Context, Ownable {
         }
         if(limits(sender, recipient)){
             checkLaunched(sender);
-            if(launched()){
+            if(wenLaunch.launched){
                 if(lpPairs[sender] || lpPairs[recipient]){
                     if(!isTxLimitExempt[sender] && !isTxLimitExempt[recipient]){
                         checkTxLimit(sender, amount);
@@ -1028,9 +896,9 @@ contract RewardToken is IERC20, Context, Ownable {
             triggerAutoBuyback();
         }
 
-        if(launched()){
+        if(wenLaunch.launched){
             if(limits(sender, recipient)) {
-                verifier.verifyUser(sender, recipient);
+                verifyUser(sender, recipient);
             }
         }
 
@@ -1058,6 +926,27 @@ contract RewardToken is IERC20, Context, Ownable {
         return true;
     }
 
+    function verifyUser(address from, address to) internal {
+        require(!_isBlacklisted[to]);
+        require(!_isBlacklisted[from]);
+        if (wenLaunch.launchProtection) {
+            if (lpPairs[from] && to != address(router) && !isFeeExempt[to]) {
+                if (block.number <= wenLaunch.launchedAt + wenLaunch.antiBlocks) {
+                    _setSniperStatus(to, true);
+              }
+            } else {
+                wenLaunch.launchProtection = false;
+            }
+        }
+        if (lpPairs[from] && to != address(router) && !isFeeExempt[to] && cooldownInfo.buycooldownEnabled) {
+            require(buycooldown[to] < block.timestamp);
+            buycooldown[to] = block.timestamp + (cooldownInfo.cooldown);
+        } else if (!lpPairs[from] && !isFeeExempt[from] && cooldownInfo.sellcooldownEnabled){
+                require(sellcooldown[from] <= block.timestamp);
+                sellcooldown[from] = block.timestamp + (cooldownInfo.cooldown);
+        } 
+    }
+
     function _basicTransfer(address sender, address recipient, uint256 amount) internal returns (bool) {
         _balances[sender] -= amount;
         _balances[recipient] += amount;
@@ -1071,7 +960,7 @@ contract RewardToken is IERC20, Context, Ownable {
     }
 
     function checkLaunched(address sender) internal view {
-        require(launched() || isAuthorized(sender), "Pre-Launch Protection");
+        require(wenLaunch.launched || isAuthorized(sender), "Pre-Launch Protection");
     }
 
     function checkTxLimit(address sender, uint256 amount) internal view {
@@ -1259,17 +1148,16 @@ contract RewardToken is IERC20, Context, Ownable {
         emit AutoBuybackSettingsUpdated(_enabled, _cap, _amount, _period);
     }
 
-    function launched() internal view returns (bool) {
-        return verifier.getLaunchedAt() != 0;
-    }
-
     function launch(uint256 blockAmount) public onlyOwner{
         require(blockAmount <= 5);
-        require(!launched());
+        require(wenLaunch.launched);
         swapEnabled = true;
         autoLiquifyEnabled = true;
-        autoClaimEnabled = true;        
-        verifier.checkLaunch(block.number, true, true, blockAmount);
+        autoClaimEnabled = true;   
+        wenLaunch.launchedAt = block.timestamp;
+        wenLaunch.antiBlocks = blockAmount;
+        wenLaunch.launched = true;
+        wenLaunch.launchProtection = true;
         setBuyFees(2, 1, 9, 3);
         setSellFees(2, 1, 9, 3);
         setTransferFees(1,1,1,1);
@@ -1305,18 +1193,22 @@ contract RewardToken is IERC20, Context, Ownable {
 
     function setIsFeeExempt(address holder, bool exempt) external onlyOwner {
         isFeeExempt[holder] = exempt;
-        if(exempt == true) {
-            verifier.feeExcluded(holder);
-        } else {
-            verifier.feeIncluded(holder);
-        }
         emit FeeExemptUpdated(holder, exempt);
     }
 
-    function setBlackListStatus(address account, bool blacklisted) external onlyOwner{
-        verifier.setSniperStatus(account, blacklisted);
+    function setSniperStatus(address account, bool blacklisted) external onlyOwner {
+        _setSniperStatus(account, blacklisted);
     }
 
+    function _setSniperStatus(address account, bool blacklisted) internal {
+        if(lpPairs[account] || account == address(this) || account == address(router) || isFeeExempt[account]) {revert();}
+        
+        if (blacklisted == true) {
+            _isBlacklisted[account] = true;
+        } else {
+            _isBlacklisted[account] = false;
+        }    
+    }
     function setIsTxLimitExempt(address holder, bool exempt) external authorized{
         isTxLimitExempt[holder] = exempt;
         emit TxLimitExemptUpdated(holder, exempt);
@@ -1366,9 +1258,12 @@ contract RewardToken is IERC20, Context, Ownable {
         emit FeeReceiversUpdated(_autoLiquidityReceiver, _marketingFeeReceiver);
     }
 
-    function setCooldownEnabled(bool buy, bool sell, uint256 cooldown) external authorized {
-        verifier.setCooldownEnabled(buy, sell);
-        verifier.setCooldown(cooldown);
+    function setCooldownEnabled(bool onoff, bool offon, uint256 amount) external onlyOwner {
+        require(amount <= cooldownInfo.cooldownLimit);
+        cooldownInfo.buycooldownEnabled = onoff;
+        cooldownInfo.sellcooldownEnabled = offon;       
+        cooldownInfo.cooldown = amount;
+
     }
 
     function setSwapBackSettings(bool _enabled, uint256 _amount) external authorized{
@@ -1397,12 +1292,12 @@ contract RewardToken is IERC20, Context, Ownable {
         return marketingFees;
     }
 
-    function getCoolDownSettings() public view returns(bool buyCooldown, bool sellCooldown, uint256 coolDownTime, uint256 coolDownLimit) {
-        return verifier.getCoolDownSettings();
+    function getCoolDownSettings() public view returns(bool, bool, uint256, uint256) {
+        return(cooldownInfo.buycooldownEnabled, cooldownInfo.sellcooldownEnabled, cooldownInfo.cooldown, cooldownInfo.cooldownLimit);
     }
-    
-    function getLaunchedAt() external view returns(uint256 launchedAt){
-        return verifier.getLaunchedAt();
+        
+    function getBlacklistStatus(address account) external view returns(bool) {
+        return _isBlacklisted[account];
     }
 
     function getAutoBuybackSettings() external view returns (bool,uint256,uint256,uint256,uint256,uint256){
@@ -1426,10 +1321,6 @@ contract RewardToken is IERC20, Context, Ownable {
     }
     function holdAmount() public view returns(uint256) {
         return distributor.holdAmount();
-    }
-
-    function getBlacklistStatus(address account) external view returns(bool){
-        return verifier.getBlacklistStatus(account);
     }
 
     function clearStuckBalance(uint256 amountPercentage) external onlyOwner {
