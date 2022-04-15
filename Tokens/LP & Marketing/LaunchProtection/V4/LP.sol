@@ -166,8 +166,6 @@ contract R is Context, Ownable, IERC20Metadata {
     function shouldSwap(address from, address to) internal view returns(bool){
         return  launched &&
                 !lpPairs[from] &&
-                !_isExcludedFromFee[from] &&
-                !_isExcludedFromFee[to] &&
                 !inSwapAndLiquify &&
                 swapAndLiquifyEnabled &&
                 balanceOf(address(this)) >= numTokensToSwap &&
