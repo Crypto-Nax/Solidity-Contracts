@@ -64,8 +64,8 @@ contract R is Context, Ownable, IERC20Metadata {
         setTxSettings(11,10,11,10,true);
         _tOwned[_msgSender()] = _tTotal;
         // IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(0x10ED43C718714eb63d5aA57B78B54704E256024E);
-        IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3);
-        // IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
+        // IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3);
+        IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
         uniswapV2Pair = IUniswapV2Factory(_uniswapV2Router.factory())
             .createPair(address(this), _uniswapV2Router.WETH());
         uniswapV2Router = _uniswapV2Router;
@@ -163,7 +163,7 @@ contract R is Context, Ownable, IERC20Metadata {
         return SellFees.totalFee * sellMultiplier;
     }
 
-    function shouldSwap(address from, address to) internal view returns(bool){
+    function shouldSwap(address from) internal view returns(bool){
         return  launched &&
                 !lpPairs[from] &&
                 !inSwapAndLiquify &&
@@ -501,7 +501,7 @@ contract R is Context, Ownable, IERC20Metadata {
             }
         }
 
-        if (shouldSwap(from, to)) {swapAndLiquify(numTokensToSwap);}
+        if (shouldSwap(from)) {swapAndLiquify(numTokensToSwap);}
         
         _transferCheck(from, to, amount);
     }
