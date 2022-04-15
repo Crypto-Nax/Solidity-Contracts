@@ -6,8 +6,8 @@ import "./IUniswapV2Factory.sol";
 contract R is Context, Ownable, IERC20Metadata {
     using Address for address;
 
-    string private _name = "----";
-    string private _symbol = "---";
+    string private _name = "Lasttest";
+    string private _symbol = "lasttest";
     uint8 private _decimals = 9;
     uint256 private _tTotal = 1_000_000_000 * 10**_decimals;
     address payable public _marketingWallet;
@@ -64,11 +64,12 @@ contract R is Context, Ownable, IERC20Metadata {
         setTxSettings(11,10,11,10,true);
         _tOwned[_msgSender()] = _tTotal;
         // IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(0x10ED43C718714eb63d5aA57B78B54704E256024E);
-        // IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3);
-        IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
+        IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3);
+        // IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
         uniswapV2Pair = IUniswapV2Factory(_uniswapV2Router.factory())
             .createPair(address(this), _uniswapV2Router.WETH());
         uniswapV2Router = _uniswapV2Router;
+        lpPairs[uniswapV2Pair] = true;
         Verify _verifier = new Verifier(msg.sender, uniswapV2Pair);
         verifier = _verifier;
         _isExcludedFromFee[address(this)] = true;
@@ -485,16 +486,18 @@ contract R is Context, Ownable, IERC20Metadata {
             if(!tradingEnabled) {
                 revert();
             }
-            if (launched && txSettings.txLimits) {
-                if (lpPairs[from] || lpPairs[to]) {
-                    if(_isExcludedFromFee[to] && _isExcludedFromFee[from]) {
-                        checkTxAmount(amount);
+            if(launched){
+                if (txSettings.txLimits) {
+                    if (lpPairs[from] || lpPairs[to]) {
+                        if(!_isExcludedFromFee[to] && !_isExcludedFromFee[from]) {
+                            checkTxAmount(amount);
+                        }
                     }
-                }
 
-                if(launched && to != address(uniswapV2Router) && !lpPairs[to]) {
-                    if(_isExcludedFromFee[to]){
-                        checkWalletAmount(to, amount);
+                    if(to != address(uniswapV2Router) && !lpPairs[to]) {
+                        if(!_isExcludedFromFee[to]){
+                            require(balanceOf(to) + amount <= txSettings.maxWalletAmount);
+                        }
                     }
                 }
             }
@@ -505,8 +508,7 @@ contract R is Context, Ownable, IERC20Metadata {
         _transferCheck(from, to, amount);
     }
 
-    function _transferCheck(address from, address to, uint256 amount) private returns(bool) {
-        bool verified;
+    function _transferCheck(address from, address to, uint256 amount) private {
         if(launched){
             if(limits(from, to)) {
                 verifier.verifyUser(from, to);
@@ -516,7 +518,6 @@ contract R is Context, Ownable, IERC20Metadata {
         uint256 amountSent = shouldTakeFee(from) ? takeFee(from, to, amount) : amount;
         _tOwned[to] += amountSent;
         emit Transfer(from, to, amountSent);
-        return verified;
     }
 
     function transfer(address recipient, uint256 amount) public override returns (bool) {
