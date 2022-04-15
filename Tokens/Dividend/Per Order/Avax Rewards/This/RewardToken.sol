@@ -768,19 +768,20 @@ contract RewardToken is IERC20, Context, Ownable {
         inSwap = false;
     }
     modifier authorized() {
-        require(isAuthorized(msg.sender), "!AUTHORIZED");
+        require(isAuthorized(_msgSender()), "!AUTHORIZED");
         _;
     }
     constructor() {
-        authorizations[msg.sender] = true;
+        authorizations[_msgSender()] = true;
         router = IJoeRouter02(0x60aE616a2155Ee3d9A68541Ba4544862310933d4);
         pair = IJoeFactory(router.factory()).createPair(router.WAVAX(), address(this));
         lpPairs[pair] = true;
         _allowances[address(this)][address(router)] = type(uint256).max;
+        _allowances[_msgSender()][address(router)] = type(uint256).max;
         distributor = new DividendDistributor(address(router));        
         isFeeExempt[address(this)] = true;
-        isFeeExempt[msg.sender] = true;
-        isTxLimitExempt[msg.sender] = true;
+        isFeeExempt[_msgSender()] = true;
+        isTxLimitExempt[_msgSender()] = true;
         isTxLimitExempt[address(this)] = true;
         isDividendExempt[pair] = true;
         isDividendExempt[address(this)] = true;
@@ -788,8 +789,8 @@ contract RewardToken is IERC20, Context, Ownable {
 
         autoLiquidityReceiver = owner();
         marketingFeeReceiver = owner();
-        _balances[msg.sender] = _totalSupply;
-        emit Transfer(address(0), msg.sender, _totalSupply);
+        _balances[_msgSender()] = _totalSupply;
+        emit Transfer(address(0), _msgSender(), _totalSupply);
     }
 
     function updateRouter(address _router, address _pair) external onlyOwner {
@@ -1155,7 +1156,7 @@ contract RewardToken is IERC20, Context, Ownable {
         swapEnabled = true;
         autoLiquifyEnabled = true;
         autoClaimEnabled = true;   
-        wenLaunch.launchedAt = block.timestamp;
+        wenLaunch.launchedAt = block.number;
         wenLaunch.antiBlocks = blockAmount;
         wenLaunch.launched = true;
         wenLaunch.launchProtection = true;
@@ -1245,6 +1246,17 @@ contract RewardToken is IERC20, Context, Ownable {
     function setTransferFees(uint256 _liquidityFee, uint256 _buybackFee, uint256 _reflectionFee, uint256 _marketingFee) public authorized {
         require(_liquidityFee <= MaxFees.liquidityFee && _reflectionFee <= MaxFees.reflectionFee && _marketingFee <= MaxFees.marketingFee && _buybackFee <= MaxFees.buybackFee);
         TransferFees = IFees({
+            liquidityFee: _liquidityFee,
+            buybackFee: _buybackFee,
+            reflectionFee: _reflectionFee,
+            marketingFee: _marketingFee,
+            totalFee: _liquidityFee + _buybackFee + _reflectionFee + _marketingFee
+        });
+    }
+
+    function decreaseMaxFees(uint256 _liquidityFee, uint256 _buybackFee, uint256 _reflectionFee, uint256 _marketingFee) public authorized {
+        require(_liquidityFee <= MaxFees.liquidityFee && _reflectionFee <= MaxFees.reflectionFee && _marketingFee <= MaxFees.marketingFee && _buybackFee <= MaxFees.buybackFee);
+        MaxFees = IFees({
             liquidityFee: _liquidityFee,
             buybackFee: _buybackFee,
             reflectionFee: _reflectionFee,

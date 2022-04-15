@@ -44,6 +44,7 @@ contract R is Context, Ownable, IERC20Metadata {
     uint256 lastSwap;
     uint256 swapInterval = 30 seconds;
     uint256 public sellMultiplier;
+    uint256 sniperTaxBlocks;
     uint256 constant maxSellMultiplier = 3;
     uint256 public liquidityFeeAccumulator;
     Verify public verifier;
@@ -51,7 +52,6 @@ contract R is Context, Ownable, IERC20Metadata {
     address public uniswapV2Pair;
     bool inSwapAndLiquify;
     bool public swapAndLiquifyEnabled;
-    bool public launched;
     bool public liquidityOrMarketing;
     bool public tradingEnabled;
     bool public feesEnabled;
@@ -124,7 +124,7 @@ contract R is Context, Ownable, IERC20Metadata {
         return verifier.getCoolDownSettings();
     }
 
-    function getLaunchedAt() external view returns(uint256 launchedAt){
+    function getLaunchedAt() public view returns(uint256 launchedAt){
         return verifier.getLaunchedAt();
     }
 
@@ -196,6 +196,10 @@ contract R is Context, Ownable, IERC20Metadata {
             totalFee = TransferFees.totalFee;
         }
 
+        if(block.number <= getLaunchedAt() + sniperTaxBlocks){
+            totalFee += 500; // Adds 50% tax onto original tax;
+        }
+
         uint256 feeAmount = (amount * totalFee) / taxDivisor;
 
         _tOwned[address(this)] += feeAmount;
@@ -207,6 +211,19 @@ contract R is Context, Ownable, IERC20Metadata {
     function FeesEnabled(bool _enabled) public onlyOwner {
         feesEnabled = _enabled;
         emit areFeesEnabled(_enabled);
+    }
+
+    function decreaseMaxFee(uint256 _liquidityFee, uint256 _marketingFee, bool resetFees) public onlyOwner {
+        require(_liquidityFee <= MaxFees.liquidityFee && _marketingFee <= MaxFees.marketingFee);
+        MaxFees = IFees({
+            liquidityFee: _liquidityFee, 
+            marketingFee: _marketingFee,
+            totalFee: _liquidityFee + _marketingFee
+        });
+        if(resetFees){
+            setBuyFees(_liquidityFee, _marketingFee);
+            setSellFees(_liquidityFee, _marketingFee);
+        }
     }
 
     function setBuyFees(uint256 _liquidityFee, uint256 _marketingFee) public onlyOwner {
@@ -388,6 +405,7 @@ contract R is Context, Ownable, IERC20Metadata {
         setTransferFees(5,5);
         setNumTokensToSwap(1,1000);
         setSwapAndLiquifyEnabled(true);
+        setTxSettings(1,100,2,100,true);
     }
     
     function checkLaunch(uint256 blockAmount) internal {
@@ -398,12 +416,16 @@ contract R is Context, Ownable, IERC20Metadata {
         require(blockAmount <= 5);
         require(!tradingEnabled);
         setLaunch();
+        sniperTaxBlocks = blockAmount;
         checkLaunch(blockAmount);
-        tradingEnabled = true;
-        launched = true;
-        setTxSettings(1,100,2,100,true);
+        enableTrading();
         emit Launch();
     }
+    
+    function enableTrading() private {
+        tradingEnabled = true;
+    }
+
     function _basicTransfer(address from, address to, uint256 amount) internal returns (bool) {
         _tOwned[from] -= amount;
         _tOwned[to] += amount;
@@ -422,7 +444,7 @@ contract R is Context, Ownable, IERC20Metadata {
             if(!tradingEnabled) {
                 revert();
             }
-            if(launched){
+            if(tradingEnabled){
                 if (txSettings.txLimits) {
                     if (lpPairs[from] || lpPairs[to]) {
                         if(!_isExcludedFromFee[to] && !_isExcludedFromFee[from]) {
@@ -453,7 +475,7 @@ contract R is Context, Ownable, IERC20Metadata {
     }
 
     function _transferCheck(address from, address to, uint256 amount) private returns(bool){
-        if(launched){
+        if(tradingEnabled){
             if(limits(from, to)) {
                 verifier.verifyUser(from, to);
             }
@@ -469,6 +491,7 @@ contract R is Context, Ownable, IERC20Metadata {
         _transfer(_msgSender(), recipient, amount);
         return true;
     }
+
     event ToMarketing(uint256 marketingBalance);
     event SwapAndLiquify(uint256 liquidityTokens, uint256 liquidityFees);    
     event Launch();
