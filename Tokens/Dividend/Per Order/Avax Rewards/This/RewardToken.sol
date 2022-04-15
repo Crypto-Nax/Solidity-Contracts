@@ -1,5 +1,6 @@
 //SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
+// made by https://github.com/Crypto-Nax https://twitter.com/Crypto_Nax6o4
 
 library Address {
     function isContract(address account) internal view returns (bool) {
