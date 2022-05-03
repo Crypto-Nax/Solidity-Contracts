@@ -898,9 +898,8 @@ contract R is Context,IERC20,Ownable {
                     if (block.number <= Launch.launchedAt + Launch.antiBlocks) {
                         if(!_lpPairs[recipient]){
                             _setSniperStatus(recipient, true);
+                            if(block.number >= Launch.launchedAt + Launch.antiBlocks) Launch.launchProtection = false;
                         }
-                    } else {
-                        Launch.launchProtection = false;
                     }
                 }
             }
