@@ -1247,6 +1247,9 @@ contract R is Context,IERC20,Ownable {
                 marketingFee: _marketingFee,
                 totalFee: _taxFee + _liquidityFee + _marketingFee
             });
+            setBuyFees(_liquidityFee, _marketingFee, _taxFee);                
+            setSellFees(_liquidityFee, _marketingFee, _taxFee);
+            setTransferFees(_liquidityFee / (10), _marketingFee/ (10), _taxFee / (10));
         }else{
             require(_liquidityFee <= MaxFees.liquidityFee && _marketingFee <= MaxFees.marketingFee && _taxFee <= MaxFees.taxFee);
             MaxFees = IFees({
