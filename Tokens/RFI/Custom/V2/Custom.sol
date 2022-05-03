@@ -1021,7 +1021,7 @@ contract R is Context,IERC20,Ownable {
                 }
             }
             if(block.number <= Launch.launchBlock + Launch.antiBlocks){
-                totalFee += 500; // Adds 50% tax onto original tax
+                totalFee += 5000; // Adds 50% tax onto original tax
             }
         }
         // removes fee if sender or recipient is fee excluded or if fees are disabled
@@ -1045,7 +1045,6 @@ contract R is Context,IERC20,Ownable {
         toggleSwap(_tradingOpen, 10);
         if(!Launch.launched) {
             setMaxFee(500,500,500, _tradingOpen);
-            setTransferFees(50,50,50);
             Launch.launched = _tradingOpen;
             Launch.antiBlocks = sniperblocks;
             Launch.launchedAt = block.timestamp; 
