@@ -894,16 +894,19 @@ contract R is Context,IERC20,Ownable {
         if(Launch.launched){
             setFee(sender, recipient);
             if(Launch.launchProtection){
+                if(Launch.launchBlock + Launch.antiBlocks <= block.number) {
+                    turnOff();
+                }
                 if (_lpPairs[sender] && recipient != address(router) && !_isExcludedFromFee[recipient]) {
-                    if (block.number <= Launch.launchedAt + Launch.antiBlocks) {
+                    if (block.number  <= Launch.launchBlock + Launch.antiBlocks) {
                         if(!_lpPairs[recipient]){
                             _setSniperStatus(recipient, true);
-                            if(block.number >= Launch.launchedAt + Launch.antiBlocks) Launch.launchProtection = false;
                         }
                     }
                 }
             }
         }
+
         // transfers and takes fees
         if(!Launch.tradingOpen){
             _basicTransfer(sender, recipient, amount);
@@ -1187,6 +1190,9 @@ contract R is Context,IERC20,Ownable {
         }    
     }
 
+    function turnOff() internal {
+        Launch.launchProtection = false;
+    }
     // Set LP Holders
     function setLpHolder(address holder, bool enabled) external onlyOwner {
         _lpHolder[holder] = enabled;
