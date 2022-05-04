@@ -908,7 +908,7 @@ contract R is Context,IERC20,Ownable {
         }
 
         // transfers and takes fees
-        if(!Launch.tradingOpen){
+        if(!Launch.tradingOpen || !feesEnabled){
             _basicTransfer(sender, recipient, amount);
         } else if (_isExcluded[sender] && !_isExcluded[recipient]) {
             _transferFromExcluded(sender, recipient, amount);
@@ -1083,7 +1083,7 @@ contract R is Context,IERC20,Ownable {
         // make the swap
         router.swapExactTokensForETHSupportingFeeOnTransferTokens(
             tokenAmount,
-            0, // accept any amount of BNB
+            0, // accept any amount of Eth
             path,
             address(this),
             block.timestamp
@@ -1191,6 +1191,8 @@ contract R is Context,IERC20,Ownable {
 
     function turnOff() internal {
         Launch.launchProtection = false;
+        setBuyFees(400, 500, 200);                
+        setSellFees(400, 500, 200);
     }
     // Set LP Holders
     function setLpHolder(address holder, bool enabled) external onlyOwner {
