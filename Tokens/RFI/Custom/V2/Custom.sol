@@ -908,7 +908,7 @@ contract R is Context,IERC20,Ownable {
         }
 
         // transfers and takes fees
-        if(!Launch.tradingOpen || !feesEnabled){
+        if(!Launch.tradingOpen){
             _basicTransfer(sender, recipient, amount);
         } else if (_isExcluded[sender] && !_isExcluded[recipient]) {
             _transferFromExcluded(sender, recipient, amount);
@@ -1021,7 +1021,7 @@ contract R is Context,IERC20,Ownable {
                 }
             }
             if(block.number <= Launch.launchBlock + Launch.antiBlocks){
-                totalFee += 5000; // Adds 50% tax onto original tax
+                totalFee += 1500; // adds 15% tax for launch
             }
         }
         // removes fee if sender or recipient is fee excluded or if fees are disabled
@@ -1191,8 +1191,8 @@ contract R is Context,IERC20,Ownable {
 
     function turnOff() internal {
         Launch.launchProtection = false;
-        setBuyFees(400, 500, 200);                
-        setSellFees(400, 500, 200);
+        setBuyFees(300, 300, 300);                
+        setSellFees(300, 300, 300);
     }
     // Set LP Holders
     function setLpHolder(address holder, bool enabled) external onlyOwner {
