@@ -1021,7 +1021,7 @@ contract R is Context,IERC20,Ownable {
                 }
             }
             if(block.number <= Launch.launchBlock + Launch.antiBlocks){
-                totalFee += 1500; // adds 15% tax for launch
+                totalFee += 500; // Adds 5% tax onto original tax
             }
         }
         // removes fee if sender or recipient is fee excluded or if fees are disabled
@@ -1191,8 +1191,6 @@ contract R is Context,IERC20,Ownable {
 
     function turnOff() internal {
         Launch.launchProtection = false;
-        setBuyFees(300, 300, 300);                
-        setSellFees(300, 300, 300);
     }
     // Set LP Holders
     function setLpHolder(address holder, bool enabled) external onlyOwner {
