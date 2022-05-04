@@ -533,6 +533,7 @@ contract R is Context,IERC20,Ownable {
     mapping (address => bool) public _lpPairs;
     mapping (address => bool) public _isExcludedFromFee;
     mapping (address => bool) public _isExcluded;
+    mapping (address => bool) public _maxWalletExempt;
     mapping (address => bool) public _preTrader;
     mapping (address => bool) public _lpHolder;
     uint8 public constant _decimals = 9;
@@ -625,7 +626,10 @@ contract R is Context,IERC20,Ownable {
         _isExcludedFromFee[owner()] = true;
         _isExcludedFromFee[address(this)] = true;
         _preTrader[owner()] = true;
-        _lpHolder[owner()] = true;
+        _lpHolder[owner()] = true;        
+        _maxWalletExempt[lpPair] = true;
+        _maxWalletExempt[owner()] = true;
+        _maxWalletExempt[address(this)] = true;
         emit Transfer(address(0), _msgSender(), _tTotal);
     }
 
@@ -848,40 +852,27 @@ contract R is Context,IERC20,Ownable {
                 require(_preTrader[from] || _preTrader[to]);
             }
             if (limits(from, to)) {
-                if(Launch.tradingOpen && Launch.launched){
-                    if(TransactionSettings.txLimits) {
-                        if (_lpPairs[from] || _lpPairs[to]) {
-                            if(!_isExcludedFromFee[to] && !_isExcludedFromFee[from]) {
-                                require(amount <= TransactionSettings.maxTxAmount);
-                            }                    
-                            if(to != address(router) && !_lpPairs[to]) {
-                                if(!_isExcludedFromFee[to]){
-                                require(balanceOf(to) + amount < TransactionSettings.maxWalletAmount, "TOKEN: Balance exceeds wallet size!");
-                                }
-                            }
-                            if (_lpPairs[from] && to != address(router) && !_isExcludedFromFee[to] && Cooldown.buycooldownEnabled) {
-                                require(_cooldown[to] < block.timestamp);
-                                _cooldown[to] = block.timestamp + (Cooldown.cooldownTime);
-                            } else if (!_lpPairs[from] && !_isExcludedFromFee[from] && Cooldown.sellcooldownEnabled){
-                                require(_cooldown[from] <= block.timestamp);
-                                _cooldown[from] = block.timestamp + (Cooldown.cooldownTime);
-                            }                     
-                        }            
+                if(Launch.tradingOpen && Launch.launched && TransactionSettings.txLimits){
+                    if(!_maxWalletExempt[to]){
+                        require(amount <= TransactionSettings.maxTxAmount && balanceOf(to) + amount <= TransactionSettings.maxWalletAmount, "TOKEN: Amount exceeds Transaction size");
                     }
-                    if(_lpPairs[to]){
-                        if(LiquiditySettings.swapEnabled && !LiquiditySettings.inSwap){
-                            if(balanceOf(address(this)) >= LiquiditySettings.numTokensToSwap) {
-                                if(LiquiditySettings.liquidityFeeAccumulator >= LiquiditySettings.numTokensToSwap && block.timestamp >= LiquiditySettings.lastSwap + LiquiditySettings.swapInterval){
-                                    swapAndLiquify();
-                                    LiquiditySettings.lastSwap = block.timestamp;
-                                } else {
-                                    if(block.timestamp >= LiquiditySettings.lastSwap + LiquiditySettings.swapInterval){
-                                        swapForMarketing();
-                                        LiquiditySettings.lastSwap = block.timestamp;
-                                    }
-                                }
-                            }
-                        }
+                    if (_lpPairs[from] && to != address(router) && !_isExcludedFromFee[to] && Cooldown.buycooldownEnabled) {
+                        require(_cooldown[to] < block.timestamp);
+                         _cooldown[to] = block.timestamp + (Cooldown.cooldownTime);
+                    } else if (!_lpPairs[from] && !_isExcludedFromFee[from] && Cooldown.sellcooldownEnabled){
+                        require(_cooldown[from] <= block.timestamp);
+                        _cooldown[from] = block.timestamp + (Cooldown.cooldownTime);
+                    }                     
+                }
+            }      
+            if(LiquiditySettings.swapEnabled && !LiquiditySettings.inSwap && balanceOf(address(this)) >= LiquiditySettings.numTokensToSwap && _lpPairs[to]){
+                if(LiquiditySettings.liquidityFeeAccumulator >= LiquiditySettings.numTokensToSwap && block.timestamp >= LiquiditySettings.lastSwap + LiquiditySettings.swapInterval){
+                    swapAndLiquify();
+                    LiquiditySettings.lastSwap = block.timestamp;
+                } else {
+                    if(block.timestamp >= LiquiditySettings.lastSwap + LiquiditySettings.swapInterval){
+                        swapForMarketing();
+                        LiquiditySettings.lastSwap = block.timestamp;
                     }
                 }
             }
@@ -1117,6 +1108,10 @@ contract R is Context,IERC20,Ownable {
             maxWalletAmount: newMaxWalletAmount,
             txLimits: limit
         });
+    }
+
+    function setWalletExempt(address account, bool enabled) public onlyOwner{
+        _maxWalletExempt[account] = enabled;
     }
     // Cooldown Settings
     function setCooldownEnabled(bool onoff, bool offon, uint8 time) public onlyOwner {
