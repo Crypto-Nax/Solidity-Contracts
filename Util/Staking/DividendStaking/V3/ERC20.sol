@@ -2,7 +2,7 @@
 pragma solidity ^0.8.1;
 
 import './Ownable.sol';
-import './IERC20Metadata.sol';
+import './IERC20MetaData.sol';
 
 
 
