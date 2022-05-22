@@ -112,6 +112,7 @@ contract Tokentest is Pausable, Ownable, ERC20 {
     mapping(address => uint256) public _balances;
     mapping(address => uint) _timeTillCooldown;
     mapping(address => uint) public _reflectionsOwned;
+    mapping(address => bool) _cooldownExempt;
     mapping(address => bool) public _isBlacklisted;
     mapping(address => bool) public _isFeeExempt;
     mapping(address => bool) public _isLiquidityPair;
@@ -120,7 +121,7 @@ contract Tokentest is Pausable, Ownable, ERC20 {
     mapping(address => bool) public _isReflectionExempt;
     mapping(address => bool) public _isPreTrader;
     mapping(address => bool) public _routers;
-    
+
     struct IFees {
         uint16 reflectionFee;
         uint16 liquidityFee;
@@ -177,26 +178,35 @@ contract Tokentest is Pausable, Ownable, ERC20 {
 
     constructor(uint startingSupply, string memory name, string memory symbol, address initialRouter) ERC20(name, symbol) {
         uint supply = startingSupply*10**18;
+        address thisCa = address(this);
         _reflectionTotal = (MAX - (MAX % supply));
         _reflectionsOwned[_msgSender()] = _reflectionTotal;
         IRouter02 router = IRouter02(initialRouter);
         _initialRouter = router;             
-        address pair = IFactory(router.factory()).createPair(address(this), router.WETH());
+        address pair = IFactory(router.factory()).createPair(thisCa, router.WETH());
         _initialPair = pair;
 
         setRouterOrPair(pair, 1, true);
         setRouterOrPair(address(router), 0, true);
         setLiquidityHolder(_msgSender(), true);
 
-        setMaxWalletExempt(address(this), true);
+        setMaxWalletExempt(thisCa, true);
         setMaxWalletExempt(_msgSender(), true);
         setMaxWalletExempt(pair, true);
+
+        setFeeExempt(thisCa, true);
+        setFeeExempt(owner(), true);
+
+        setCooldownExempt(thisCa, true);
+        setCooldownExempt(owner(), true);
+        setCooldownExempt(address(router), true);
+
 
         allowPreTrading(owner(), true);
         setLiquidityHolder(owner(), true);  
 
         _approve(_msgSender(), address(initialRouter), type(uint256).max);
-        _approve(address(this), address(initialRouter), type(uint256).max);  
+        _approve(thisCa, address(initialRouter), type(uint256).max);  
 
         CooldownInfo.cooldownLimit = 60;
 
@@ -248,6 +258,10 @@ contract Tokentest is Pausable, Ownable, ERC20 {
         CooldownInfo.buycooldownEnabled = onoff;
         CooldownInfo.sellcooldownEnabled = offon;
         emit CooldownSettingsUpdated(onoff, offon, time);
+    }
+
+    function setCooldownExempt(address holder, bool onOff) public onlyOwner {
+        _cooldownExempt[holder] = onOff;
     }
 
     // Exempt Or Include Holder From Fees
@@ -673,10 +687,10 @@ contract Tokentest is Pausable, Ownable, ERC20 {
                         if(!_isMaxWalletExempt[to]){
                             require(amount <= TransactionSettings.maxTransactionAmount && balanceOf(to) + amount <= TransactionSettings.maxWalletAmount, "TOKEN: Amount exceeds Transaction size");
                         }
-                        if (_isLiquidityPair[from] && !_routers[to] && !_isFeeExempt[to] && CooldownInfo.buycooldownEnabled) {
+                        if (_isLiquidityPair[from] && !_cooldownExempt[to] && CooldownInfo.buycooldownEnabled) {
                             require(_timeTillCooldown[to] < block.timestamp);
                             _timeTillCooldown[to] = block.timestamp + (CooldownInfo.cooldownTime);
-                        } else if (!_isLiquidityPair[from] && !_isFeeExempt[from] && CooldownInfo.sellcooldownEnabled){
+                        } else if (!_isLiquidityPair[from] && !_cooldownExempt[from] && CooldownInfo.sellcooldownEnabled){
                             require(_timeTillCooldown[from] <= block.timestamp);
                             _timeTillCooldown[from] = block.timestamp + (CooldownInfo.cooldownTime);
                         }                     
