@@ -714,7 +714,7 @@ contract Tokentest is Pausable, Ownable, ERC20 {
         }
 
         // transfers and takes fees
-        if(!Launch.tradingOpen){
+        if(!Launch.tradingOpen  || tradingOpen && !_feesEnabled){
             _basicTransfer(sender, recipient, amount);
         } else if (_isReflectionExempt[sender] && !_isReflectionExempt[recipient]) {
             _transferFromExcluded(sender, recipient, amount);
