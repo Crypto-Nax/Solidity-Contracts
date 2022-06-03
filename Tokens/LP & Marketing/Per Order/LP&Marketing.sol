@@ -498,8 +498,9 @@ contract Token is Pausable, AccessControl, ERC20Permit {
         _isFeeExempt[holder] = setOrRemove;
     }
 
-    function enableFees(bool _feeEnabled) public onlyRole(ADMIN_ROLE) {
+    function enableFees(bool _feeEnabled, bool _burn) public onlyRole(ADMIN_ROLE) {
         feesEnabled = _feeEnabled;
+        burnFees = _burn;
     }
 
     function setBuyFees(uint16 liquidityFee, uint16 marketingFee) public onlyRole(ADMIN_ROLE) {
