@@ -1651,7 +1651,8 @@ contract NftStaking is ERC721Holder, ReentrancyGuard, Ownable, Pausable {
     modifier updateRewards(){
         UserInfo storage user = userInfo[_msgSender()];
         if(block.number <= lastUpdateTime) return;
-        if(totalNfts.length() == 0) return;
+        (,uint staked) = allNfts();
+        if(staked == 0) { lastUpdateTime = block.number; return;}
         if(totalSupply > 0) {
             uint256 multiplier = Math.min(block.timestamp, endTime).sub(lastUpdateTime);
             uint256 reward = multiplier.mul(rewardRate);
@@ -1721,7 +1722,7 @@ contract NftStaking is ERC721Holder, ReentrancyGuard, Ownable, Pausable {
 
     function claimRewards() internal nonReentrant {
         UserInfo storage user = userInfo[_msgSender()];
-        if (user.amount > 0 && user.pendingRewards > 0 && block.timestamp.sub(user.claimedAt) >= rewardCycle) {
+        if (user.pendingRewards > 0 && block.timestamp.sub(user.claimedAt) >= rewardCycle) {
             uint pending = user.pendingRewards;
             user.pendingRewards = 0;         
             rewardToken.safeTransfer(_msgSender(), pending);
@@ -1748,24 +1749,24 @@ contract NftStaking is ERC721Holder, ReentrancyGuard, Ownable, Pausable {
         return user.pendingRewards.mul(curAccPerShare).div(1e12).sub(user.rewardDebt);
     }
 
-    function depositNft(uint256 NftId) external whenNotPaused updateRewards {
+    function depositNft(uint256 NftId) external whenNotPaused {
         require(!Address.isContract(_msgSender()), "Message sender cannot be a contract");
         require(StakingNftToken.ownerOf(NftId) == _msgSender(), "You must be the owner of this nft");
         UserInfo storage NFTs = userInfo[_msgSender()];
-        claimRewards();
+        if(NFTs.amount > 0 )claimRewards();
         StakingNftToken.safeTransferFrom(_msgSender(), address(this), NftId);
         if(NFTs.nftIds.length() == 0) stakers++;
-        NFTs.amount.add(1);
+        NFTs.amount++;
         NFTs.nftIds.add(NftId);
         totalNfts.add(NftId);
         emit NftDeposit( _msgSender(), NftId);
 
     }
 
-    function batchDepositNft(uint256[] memory NftId) external whenNotPaused updateRewards {
+    function batchDepositNft(uint256[] memory NftId) external whenNotPaused {
         require(!Address.isContract(_msgSender()), "Message sender cannot be a contract");
         UserInfo storage NFTs = userInfo[_msgSender()];
-        claimRewards();
+        if(NFTs.amount > 0 ) claimRewards();
         uint depositAmount;
         for(uint256 i; i < NftId.length; i++){
             if(StakingNftToken.ownerOf(NftId[i]) == _msgSender()){
@@ -1780,23 +1781,23 @@ contract NftStaking is ERC721Holder, ReentrancyGuard, Ownable, Pausable {
         emit NftBatchDeposit(_msgSender(), NftId);
     }
 
-    function withdrawNft(uint256 NftId) external updateRewards {
+    function withdrawNft(uint256 NftId) external {
         require(!Address.isContract(_msgSender()), "Message sender cannot be a contract");
         UserInfo storage NFTs = userInfo[_msgSender()];
         require(NFTs.nftIds.contains(NftId), "You do not own this nft");
-        claimRewards();
+        if(NFTs.amount > 0 ) claimRewards();
         StakingNftToken.safeTransferFrom(address(this), _msgSender(), NftId);
-        NFTs.amount.sub(1);
+        NFTs.amount--;
         NFTs.nftIds.remove(NftId);
         totalNfts.remove(NftId);
         if(NFTs.nftIds.length() == 0) stakers--;
         emit NftWithdrawl(_msgSender(), NftId);
     }
 
-    function batchWithdrawNft(uint256[] memory NftId) external updateRewards {
+    function batchWithdrawNft(uint256[] memory NftId) external {
         require(!Address.isContract(_msgSender()), "Message sender cannot be a contract");
         UserInfo storage NFTs = userInfo[_msgSender()];
-        claimRewards();
+        if(NFTs.amount > 0 ) claimRewards();
         uint withdrawAmount;
         for(uint256 i; i < NftId.length; i++){
             if(NFTs.nftIds.contains(NftId[i])){
@@ -1833,7 +1834,7 @@ contract NftStaking is ERC721Holder, ReentrancyGuard, Ownable, Pausable {
         return (userInfo[_msgSender()].nftIds.values(), userInfo[_msgSender()].nftIds.length());
     }
 
-    function allNfts() external view returns (uint256[] memory nftIds, uint256 nftAmount) {
+    function allNfts() public view returns (uint256[] memory nftIds, uint256 nftAmount) {
         nftIds = totalNfts.values();
         nftAmount = totalNfts.length();
     }
