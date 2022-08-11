@@ -1704,7 +1704,7 @@ contract NftStaking is ERC721Holder, ReentrancyGuard, Ownable, Pausable {
         endTime = time;
     }
 
-    function setRewardRate(uint256 _rewardRate) internal {
+    function setRewardRate(uint256 _rewardRate) external {
         require (endTime > block.timestamp, "expired");
         require (_rewardRate > 0, "Rewards per second should be greater than 0!");
 
