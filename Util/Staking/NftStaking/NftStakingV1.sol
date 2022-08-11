@@ -1725,10 +1725,10 @@ contract NftStaking is ERC721Holder, ReentrancyGuard, Ownable, Pausable {
         require(block.timestamp.sub(user.claimedAt) >= rewardCycle);
         if (user.amount > 0 && user.pendingRewards > 0) {
             uint pending = user.pendingRewards;
+            NFTs.pendingRewards = 0;         
             rewardToken.safeTransfer(_msgSender(), pending);
             user.rewardsDistributed.add(pending);
             totalSupply.sub(pending);
-            user.pendingRewards = 0;
             emit Claimed(_msgSender(), pending);
         }
 
@@ -1752,9 +1752,9 @@ contract NftStaking is ERC721Holder, ReentrancyGuard, Ownable, Pausable {
         UserInfo storage NFTs = userInfo[_msgSender()];
         if (NFTs.amount > 0 && NFTs.pendingRewards > 0) {
             uint pending = NFTs.pendingRewards;
+            NFTs.pendingRewards = 0;         
             rewardToken.safeTransfer(_msgSender(), pending);
             NFTs.rewardsDistributed.add(pending);
-            NFTs.pendingRewards = 0;
             totalSupply.sub(pending);
             emit Claimed(_msgSender(), pending);
         }
@@ -1772,9 +1772,9 @@ contract NftStaking is ERC721Holder, ReentrancyGuard, Ownable, Pausable {
         UserInfo storage NFTs = userInfo[_msgSender()];
         if (NFTs.amount > 0 && NFTs.pendingRewards > 0) {
             uint pending = NFTs.pendingRewards;
+            NFTs.pendingRewards = 0;        
             rewardToken.safeTransfer(_msgSender(), pending);
             NFTs.rewardsDistributed.add(pending);
-            NFTs.pendingRewards = 0;
             totalSupply.sub(pending);
             emit Claimed(_msgSender(), pending);
         }
@@ -1798,9 +1798,9 @@ contract NftStaking is ERC721Holder, ReentrancyGuard, Ownable, Pausable {
         require(NFTs.nftIds.contains(NftId), "You do not own this nft");
         if (NFTs.amount > 0 && NFTs.pendingRewards > 0) {
             uint pending = NFTs.pendingRewards;
+            NFTs.pendingRewards = 0;         
             rewardToken.safeTransfer(_msgSender(), pending);
             NFTs.rewardsDistributed.add(pending);
-            NFTs.pendingRewards = 0;
             totalSupply.sub(pending);
             emit Claimed(_msgSender(), pending);
         }
@@ -1817,9 +1817,9 @@ contract NftStaking is ERC721Holder, ReentrancyGuard, Ownable, Pausable {
         UserInfo storage NFTs = userInfo[_msgSender()];
         if (NFTs.amount > 0 && NFTs.pendingRewards > 0) {
             uint pending = NFTs.pendingRewards;
+            NFTs.pendingRewards = 0;
             rewardToken.safeTransfer(_msgSender(), pending);
             NFTs.rewardsDistributed.add(pending);
-            NFTs.pendingRewards = 0;
             totalSupply.sub(pending);
             emit Claimed(_msgSender(), pending);
         }
