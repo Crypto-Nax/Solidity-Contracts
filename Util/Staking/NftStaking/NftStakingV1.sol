@@ -1664,7 +1664,7 @@ contract NftStaking is ERC721Holder, ReentrancyGuard, Ownable, Pausable {
         _;
         
         user.rewardDebt = user.amount.mul(accPerShare).div(1e12);
-        if (user.claimedAt == 0) user.claimedAt = block.timestamp;
+        user.claimedAt = block.timestamp;
     }
 
     constructor(IERC20 Token, IERC721A Nft) {
@@ -1731,7 +1731,6 @@ contract NftStaking is ERC721Holder, ReentrancyGuard, Ownable, Pausable {
             totalSupply.sub(pending);
             emit Claimed(_msgSender(), pending);
         }
-
     }
 
     function claimable() external view returns (uint256) {
@@ -1750,7 +1749,7 @@ contract NftStaking is ERC721Holder, ReentrancyGuard, Ownable, Pausable {
         require(!Address.isContract(_msgSender()), "Message sender cannot be a contract");
         require(StakingNftToken.ownerOf(NftId) == _msgSender(), "You must be the owner of this nft");
         UserInfo storage NFTs = userInfo[_msgSender()];
-        if (NFTs.amount > 0 && NFTs.pendingRewards > 0) {
+        if (NFTs.amount > 0 && NFTs.pendingRewards > 0 && block.timestamp.sub(user.claimedAt) >= rewardCycle) {
             uint pending = NFTs.pendingRewards;
             NFTs.pendingRewards = 0;         
             rewardToken.safeTransfer(_msgSender(), pending);
@@ -1770,7 +1769,7 @@ contract NftStaking is ERC721Holder, ReentrancyGuard, Ownable, Pausable {
     function batchDepositNft(uint256[] memory NftId) external nonReentrant whenNotPaused updateRewards {
         require(!Address.isContract(_msgSender()), "Message sender cannot be a contract");
         UserInfo storage NFTs = userInfo[_msgSender()];
-        if (NFTs.amount > 0 && NFTs.pendingRewards > 0) {
+        if (NFTs.amount > 0 && NFTs.pendingRewards > 0 && block.timestamp.sub(user.claimedAt) >= rewardCycle) {
             uint pending = NFTs.pendingRewards;
             NFTs.pendingRewards = 0;        
             rewardToken.safeTransfer(_msgSender(), pending);
@@ -1796,7 +1795,7 @@ contract NftStaking is ERC721Holder, ReentrancyGuard, Ownable, Pausable {
         require(!Address.isContract(_msgSender()), "Message sender cannot be a contract");
         UserInfo storage NFTs = userInfo[_msgSender()];
         require(NFTs.nftIds.contains(NftId), "You do not own this nft");
-        if (NFTs.amount > 0 && NFTs.pendingRewards > 0) {
+        if (NFTs.amount > 0 && NFTs.pendingRewards > 0 && block.timestamp.sub(user.claimedAt) >= rewardCycle) {
             uint pending = NFTs.pendingRewards;
             NFTs.pendingRewards = 0;         
             rewardToken.safeTransfer(_msgSender(), pending);
@@ -1815,7 +1814,7 @@ contract NftStaking is ERC721Holder, ReentrancyGuard, Ownable, Pausable {
     function batchWithdrawNft(uint256[] memory NftId) external updateRewards {
         require(!Address.isContract(_msgSender()), "Message sender cannot be a contract");
         UserInfo storage NFTs = userInfo[_msgSender()];
-        if (NFTs.amount > 0 && NFTs.pendingRewards > 0) {
+        if (NFTs.amount > 0 && NFTs.pendingRewards > 0 && block.timestamp.sub(user.claimedAt) >= rewardCycle) {
             uint pending = NFTs.pendingRewards;
             NFTs.pendingRewards = 0;
             rewardToken.safeTransfer(_msgSender(), pending);
